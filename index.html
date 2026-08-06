@@ -3,11 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sanvee's Daily Sale & Monthly Profit Tracker</title>
+  <title>Sanvee's Cloud POS & Profit Tracker</title>
+  
+  <!-- Tailwind CSS & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-  <!-- Supabase JS Client -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Google Firebase Cloud SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
   <style>
     @media print {
       .no-print { display: none !important; }
@@ -15,39 +21,58 @@
       .print-container { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
       .card-shadow { box-shadow: none !important; border: 1px solid #000 !important; }
     }
-    .img-large {
-      width: 110px;
-      height: 140px;
-      object-fit: cover;
-      border-radius: 8px;
-      border: 1px solid #cbd5e1;
-    }
-    .img-selector {
-      width: 85px;
-      height: 105px;
-      object-fit: cover;
-      border-radius: 6px;
-    }
+    .img-large { width: 110px; height: 140px; object-fit: cover; border-radius: 8px; border: 1px solid #cbd5e1; }
+    .img-selector { width: 85px; height: 105px; object-fit: cover; border-radius: 6px; }
   </style>
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-800 pb-16">
 
-  <!-- Header -->
-  <header class="bg-slate-900 text-white sticky top-0 z-50 shadow-md no-print">
+  <!-- LOGIN MODAL -->
+  <div id="login-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+      <div class="text-center mb-6">
+        <div class="bg-amber-500 text-slate-900 font-extrabold w-12 h-12 rounded-xl text-2xl flex items-center justify-center mx-auto mb-2 shadow-md">S</div>
+        <h2 class="text-xl font-black text-slate-900">Sanvee's Cloud POS</h2>
+        <p class="text-xs text-slate-500 mt-1">Log in to access store data from any PC or Mobile</p>
+      </div>
+      <form id="form-login" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Email Address</label>
+          <input type="email" id="login-email" required placeholder="admin@sanvee.com" class="w-full border border-slate-300 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Password</label>
+          <input type="password" id="login-password" required placeholder="••••••••" class="w-full border border-slate-300 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+        <div id="login-error" class="text-rose-600 text-xs font-bold hidden bg-rose-50 p-2.5 rounded-lg border border-rose-200"></div>
+        <button type="submit" id="btn-login" class="w-full bg-slate-900 hover:bg-slate-800 text-amber-400 font-extrabold py-3 rounded-xl text-sm transition shadow-lg flex justify-center items-center gap-2">
+          <i class="fa-solid fa-right-to-bracket"></i> Login to Cloud System
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <header class="bg-slate-900 text-white sticky top-0 z-40 shadow-md no-print">
     <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
       <div class="flex items-center space-x-3">
         <div class="bg-amber-500 text-slate-900 font-extrabold px-3 py-1 rounded-lg text-lg">S</div>
         <div>
           <h1 class="text-lg font-bold leading-none">Sanvee's POS & Profit Tracker</h1>
-          <p class="text-xs text-slate-400 mt-0.5">Daily Sale Breakdown & Auto Monthly Sector</p>
+          <p class="text-xs text-slate-400 mt-0.5"><i class="fa-solid fa-cloud text-amber-400"></i> Cloud Synced Live</p>
         </div>
       </div>
-      <button type="button" onclick="window.print()" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-4 py-2 rounded-lg text-xs flex items-center gap-2 transition">
-        <i class="fa-solid fa-print text-sm"></i> Print Report
-      </button>
+      <div class="flex items-center gap-2">
+        <button type="button" onclick="window.print()" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-print"></i> Print
+        </button>
+        <button type="button" onclick="logout()" class="bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white font-bold px-3 py-1.5 rounded-lg text-xs transition">
+          <i class="fa-solid fa-power-off"></i> Logout
+        </button>
+      </div>
     </div>
 
-    <!-- Navigation Tabs -->
+    <!-- TABS -->
     <div class="bg-slate-800 border-t border-slate-700 text-xs font-semibold">
       <div class="max-w-7xl mx-auto flex">
         <button type="button" id="tab-daily-btn" onclick="switchTab('daily')" class="flex-1 py-3 text-center border-b-2 border-amber-500 text-amber-400 bg-slate-900 font-bold flex justify-center items-center gap-2">
@@ -62,59 +87,44 @@
 
   <main class="max-w-7xl mx-auto p-4 md:p-6 print-container">
 
-    <!-- TAB 1: DAILY ENTRY & BREAKDOWN -->
+    <!-- TAB 1: DAILY ENTRY -->
     <div id="tab-daily" class="space-y-6">
-
-      <div class="hidden print:block text-center mb-6 pb-2 border-b-2 border-slate-800">
-        <h1 class="text-2xl font-bold uppercase tracking-wider text-slate-900">Sanvee's Daily Sale Breakdown</h1>
-        <p id="print-date-display" class="text-sm font-semibold text-slate-600 mt-1"></p>
-      </div>
-
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        <!-- 1. Add Product Form -->
+        <!-- 1. ADD PRODUCT -->
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm no-print space-y-4">
           <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b pb-2 flex items-center gap-2">
-            <i class="fa-solid fa-cloud-arrow-up text-amber-500"></i> 1. Add New Product Picture
+            <i class="fa-solid fa-cloud-arrow-up text-amber-500"></i> 1. Add Product Picture
           </h2>
           <form id="form-add-product" class="space-y-3">
             <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1">Product Picture</label>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Product Image</label>
               <input type="file" id="input-prod-file" accept="image/*" required class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-50 file:text-amber-800 hover:file:bg-amber-100">
             </div>
-
             <div class="grid grid-cols-2 gap-3">
               <div>
                 <label class="block text-xs font-semibold text-slate-600 mb-1">Buying Price (৳)</label>
-                <input type="number" id="input-prod-buy" min="0" placeholder="e.g. 1270" required class="w-full border border-slate-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-amber-500">
+                <input type="number" id="input-prod-buy" min="0" placeholder="1270" required class="w-full border border-slate-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-amber-500">
               </div>
               <div>
                 <label class="block text-xs font-semibold text-slate-600 mb-1">Selling Price (৳)</label>
-                <input type="number" id="input-prod-sell" min="0" placeholder="e.g. 1780" required class="w-full border border-slate-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-amber-500">
+                <input type="number" id="input-prod-sell" min="0" placeholder="1780" required class="w-full border border-slate-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-amber-500">
               </div>
             </div>
-
             <div>
               <label class="block text-xs font-semibold text-slate-600 mb-1">Description / Note</label>
-              <input type="text" id="input-prod-desc" placeholder="e.g. Pakistani Gown" class="w-full border border-slate-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-amber-500">
+              <input type="text" id="input-prod-desc" placeholder="Pakistani Gown" class="w-full border border-slate-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-amber-500">
             </div>
-
-            <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs flex justify-between items-center">
-              <span class="text-slate-600 font-medium">Gross Profit Per Piece:</span>
-              <span id="preview-unit-profit" class="font-bold text-emerald-600 text-sm">৳ 0</span>
-            </div>
-
-            <button type="submit" id="btn-save-prod" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2.5 rounded-lg text-xs transition">
-              Save Product Image
+            <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2.5 rounded-lg text-xs transition shadow-sm">
+              Save Product to Cloud
             </button>
           </form>
         </div>
 
-        <!-- 2. Record Sale Form -->
+        <!-- 2. RECORD SALE -->
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm no-print space-y-4">
           <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b pb-2 flex items-center justify-between">
             <span class="flex items-center gap-2"><i class="fa-solid fa-cart-circle-check text-emerald-600"></i> 2. Record Daily Sale</span>
-            <span class="text-[10px] text-slate-400 font-normal">(Click picture to select/edit)</span>
           </h2>
           <form id="form-sale-entry" class="space-y-3">
             <div>
@@ -122,7 +132,6 @@
               <div id="product-grid-selector" class="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto p-2 border border-slate-200 rounded-xl bg-slate-50"></div>
               <input type="hidden" id="selected-prod-id" required>
             </div>
-
             <div class="grid grid-cols-2 gap-3">
               <div>
                 <label class="block text-xs font-semibold text-slate-600 mb-1">Quantity (Pieces)</label>
@@ -133,72 +142,40 @@
                 <input type="date" id="input-sale-date" required class="w-full border border-slate-300 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500">
               </div>
             </div>
-
-            <button type="submit" id="btn-sale-submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-xs transition">
+            <button type="submit" id="btn-sale-submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-xs transition shadow-sm">
               Add Sale Entry
             </button>
           </form>
         </div>
 
-        <!-- 3. Summary Card -->
+        <!-- 3. SUMMARY CARD -->
         <div class="bg-amber-100/90 border-2 border-slate-900 rounded-2xl p-5 shadow-sm text-slate-900 flex flex-col justify-between card-shadow">
           <div>
-            <div class="bg-amber-200/80 border border-slate-800 text-center py-2 px-3 rounded-lg font-black text-lg uppercase tracking-wider mb-2">
-              Sanvee's Daily Sale
-            </div>
-            <div id="summary-header-date" class="bg-rose-300/80 border border-slate-800 text-center py-1.5 px-3 rounded-lg font-bold text-xs mb-4">
-              Day: Thursday, Date: 06/08/2026
-            </div>
-
+            <div class="bg-amber-200/80 border border-slate-800 text-center py-2 px-3 rounded-lg font-black text-lg uppercase mb-2">Sanvee's Daily Sale</div>
+            <div id="summary-header-date" class="bg-rose-300/80 border border-slate-800 text-center py-1.5 px-3 rounded-lg font-bold text-xs mb-4">Date: --</div>
+            
             <div class="mb-4 no-print bg-white p-3 rounded-xl border border-amber-300 shadow-inner">
-              <label class="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
-                <span>Daily Boosting Cost (৳):</span>
-                <i class="fa-solid fa-rectangle-ad text-rose-500"></i>
-              </label>
-              <input type="number" id="input-daily-costing" value="23970" min="0" class="w-full border border-slate-300 rounded-lg p-2 text-right font-black text-base text-slate-900 outline-none focus:ring-2 focus:ring-amber-500">
+              <label class="block text-xs font-bold text-slate-700 mb-1">Daily Boosting Cost (৳):</label>
+              <input type="number" id="input-daily-costing" value="0" min="0" class="w-full border border-slate-300 rounded-lg p-2 text-right font-black text-base text-slate-900 outline-none focus:ring-2 focus:ring-amber-500">
             </div>
 
             <div class="border border-slate-900 rounded-xl overflow-hidden bg-white text-xs font-semibold divide-y divide-slate-800">
-              <div class="flex justify-between p-2.5 bg-amber-50">
-                <span>Quantity</span>
-                <span id="summary-qty" class="font-extrabold text-sm">0</span>
-              </div>
-              <div class="flex justify-between p-2.5">
-                <span>Profit</span>
-                <span id="summary-gross-profit" class="font-extrabold text-sm text-slate-900">0</span>
-              </div>
-              <div class="flex justify-between p-2.5 bg-amber-50">
-                <span>Costing</span>
-                <span id="summary-costing" class="font-extrabold text-sm text-rose-600">0</span>
-              </div>
-              <div class="flex justify-between p-2.5">
-                <span>Per Product Cost</span>
-                <span id="summary-per-product-cost" class="font-extrabold text-sm text-slate-900">0</span>
-              </div>
-              <div class="flex justify-between p-3 bg-amber-200/90 font-black text-sm">
-                <span>Total Profit</span>
-                <span id="summary-total-profit" class="font-extrabold text-base text-rose-600">0</span>
-              </div>
+              <div class="flex justify-between p-2.5 bg-amber-50"><span>Quantity</span><span id="summary-qty" class="font-extrabold text-sm">0</span></div>
+              <div class="flex justify-between p-2.5"><span>Profit</span><span id="summary-gross-profit" class="font-extrabold text-sm text-slate-900">৳ 0</span></div>
+              <div class="flex justify-between p-2.5 bg-amber-50"><span>Costing</span><span id="summary-costing" class="font-extrabold text-sm text-rose-600">৳ 0</span></div>
+              <div class="flex justify-between p-2.5"><span>Per Product Cost</span><span id="summary-per-product-cost" class="font-extrabold text-sm">৳ 0</span></div>
+              <div class="flex justify-between p-3 bg-amber-200/90 font-black text-sm"><span>Total Profit</span><span id="summary-total-profit" class="font-extrabold text-base text-rose-600">৳ 0</span></div>
             </div>
-          </div>
-
-          <div class="mt-4 flex justify-between items-center text-[11px] text-slate-600 no-print">
-            <span class="italic"><i class="fa-solid fa-circle-info"></i> Auto Total Profit Calculation</span>
-            <button type="button" onclick="clearTodayEntries()" class="text-rose-600 hover:underline font-bold">Clear Today's Sales</button>
           </div>
         </div>
 
       </div>
 
-      <!-- Breakdown Table -->
+      <!-- TABLE -->
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden card-shadow">
         <div class="p-4 bg-slate-900 text-white font-bold text-sm flex justify-between items-center">
-          <span class="flex items-center gap-2">
-            <i class="fa-solid fa-list-check text-amber-400"></i> Daily Sales Breakdown Table
-          </span>
-          <span id="table-date-subtitle" class="text-xs font-medium text-slate-300"></span>
+          <span><i class="fa-solid fa-list-check text-amber-400"></i> Daily Sales Breakdown Table</span>
         </div>
-
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-xs md:text-sm">
             <thead class="bg-slate-100 text-slate-700 font-bold border-b border-slate-300">
@@ -215,53 +192,23 @@
           </table>
         </div>
       </div>
-
     </div>
 
-    <!-- TAB 2: AUTOMATIC MONTHLY SECTOR -->
+    <!-- TAB 2: MONTHLY -->
     <div id="tab-monthly" class="hidden space-y-6">
-
-      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 card-shadow">
-        <div>
-          <h2 class="text-lg font-bold text-slate-900 uppercase tracking-wide">Automatic Monthly Summary Report</h2>
-          <p class="text-xs text-slate-500 mt-0.5">Aggregated metrics automatically calculated from daily entries</p>
-        </div>
-        <div class="flex items-center gap-3">
-          <label class="text-xs font-bold text-slate-700">Select Month:</label>
-          <input type="month" id="input-monthly-filter" class="border border-slate-300 rounded-lg p-2 text-sm font-bold text-slate-900 bg-amber-50 outline-none focus:ring-2 focus:ring-amber-500">
-          <button type="button" onclick="window.print()" class="no-print bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-1.5">
-            <i class="fa-solid fa-print"></i> Print
-          </button>
-        </div>
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+        <h2 class="text-lg font-bold text-slate-900 uppercase tracking-wide">Automatic Monthly Summary Report</h2>
+        <input type="month" id="input-monthly-filter" class="border border-slate-300 rounded-lg p-2 text-sm font-bold text-slate-900 bg-amber-50">
       </div>
-
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="bg-slate-900 text-white p-4 rounded-2xl shadow-sm border-l-4 border-amber-500">
-          <p class="text-xs text-slate-400 font-medium">Total Quantity Sold</p>
-          <p id="m-stat-qty" class="text-2xl font-black mt-1 text-amber-400">0 Pcs</p>
-        </div>
-        <div class="bg-white text-slate-900 p-4 rounded-2xl border border-slate-200 shadow-sm border-l-4 border-indigo-500">
-          <p class="text-xs text-slate-500 font-medium">Monthly Profit (Gross)</p>
-          <p id="m-stat-gross" class="text-2xl font-black mt-1 text-indigo-700">৳ 0</p>
-        </div>
-        <div class="bg-white text-slate-900 p-4 rounded-2xl border border-slate-200 shadow-sm border-l-4 border-rose-500">
-          <p class="text-xs text-slate-500 font-medium">Monthly Costing (Boosting)</p>
-          <p id="m-stat-costing" class="text-2xl font-black mt-1 text-rose-600">৳ 0</p>
-        </div>
-        <div class="bg-amber-400 text-slate-900 p-4 rounded-2xl shadow-sm border-l-4 border-slate-900">
-          <p class="text-xs font-bold text-slate-800">Monthly Total Net Profit</p>
-          <p id="m-stat-net" class="text-2xl font-black mt-1 text-slate-950">৳ 0</p>
-        </div>
+        <div class="bg-slate-900 text-white p-4 rounded-2xl shadow-sm border-l-4 border-amber-500"><p class="text-xs text-slate-400">Total Quantity</p><p id="m-stat-qty" class="text-2xl font-black mt-1 text-amber-400">0 Pcs</p></div>
+        <div class="bg-white text-slate-900 p-4 rounded-2xl border border-slate-200 shadow-sm border-l-4 border-indigo-500"><p class="text-xs text-slate-500">Gross Profit</p><p id="m-stat-gross" class="text-2xl font-black mt-1 text-indigo-700">৳ 0</p></div>
+        <div class="bg-white text-slate-900 p-4 rounded-2xl border border-slate-200 shadow-sm border-l-4 border-rose-500"><p class="text-xs text-slate-500">Costing</p><p id="m-stat-costing" class="text-2xl font-black mt-1 text-rose-600">৳ 0</p></div>
+        <div class="bg-amber-400 text-slate-900 p-4 rounded-2xl shadow-sm border-l-4 border-slate-900"><p class="text-xs font-bold text-slate-800">Net Profit</p><p id="m-stat-net" class="text-2xl font-black mt-1 text-slate-950">৳ 0</p></div>
       </div>
 
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden card-shadow">
-        <div class="p-4 bg-slate-900 text-white font-bold text-sm flex justify-between items-center">
-          <span class="flex items-center gap-2">
-            <i class="fa-solid fa-images text-amber-400"></i> Monthly Performance Per Product Picture
-          </span>
-          <span class="text-xs text-slate-300 font-normal">Auto calculated per picture</span>
-        </div>
-
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 bg-slate-900 text-white font-bold text-sm">Monthly Performance Per Product Picture</div>
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-xs md:text-sm">
             <thead class="bg-slate-100 text-slate-700 font-bold border-b border-slate-300">
@@ -271,7 +218,7 @@
                 <th class="p-3">Buying Price</th>
                 <th class="p-3">Selling Price</th>
                 <th class="p-3">Unit Profit</th>
-                <th class="p-3 font-extrabold text-slate-900">Total Sold (Pcs)</th>
+                <th class="p-3 font-extrabold text-slate-900">Total Sold</th>
                 <th class="p-3 font-extrabold text-emerald-700">Total Profit Contribution</th>
               </tr>
             </thead>
@@ -279,475 +226,243 @@
           </table>
         </div>
       </div>
-
     </div>
 
   </main>
 
-<script>
-    // --- 1. Supabase Initialization ---
-    const SUPABASE_URL = 'https://uwbaodztrzofrnomrxde.supabase.co/';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3YmFvZHp0cnpvZnJub21yeGRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5MjIxMzQsImV4cCI6MjEwMTQ5ODEzNH0.D6q734KEJyA0Oh0smjQPXSHZMsil9oMdUEOLaRix4vM';
-    
-    // Initialize Supabase client defensively to avoid undefined storage errors
-    let supabaseClient;
-    try {
-      if (window && window.supabase && typeof window.supabase.createClient === 'function') {
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      } else if (typeof createClient === 'function') {
-        supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      } else {
-        throw new Error('Supabase client library not found. Ensure the @supabase/supabase-js script is loaded before this script.');
-      }
-    } catch (initErr) {
-      console.error('Supabase initialization error:', initErr);
-      alert('Supabase initialization failed. Check console for details.');
-    }
+  <script>
+    // =========================================================
+    // FIREBASE CONFIGURATION
+    // (আপনার Firebase Project থেকে পাওয়া সংকেতগুলো এখানে দিন)
+    // =========================================================
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY_HERE",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
 
-    // Basic readiness check for supabase usage
-    async function testSupabaseConnection() {
-      if (!supabaseClient) {
-        console.error('Supabase client not available');
-        return false;
-      }
-      if (!supabaseClient.from || !supabaseClient.storage) {
-        console.error('Supabase client missing expected methods', supabaseClient);
-        return false;
-      }
-      try {
-        // Try a lightweight request to detect auth/key or CORS issues early
-        const { data, error } = await supabaseClient.from('products').select('id').limit(1);
-        if (error) {
-          console.error('Supabase ping error:', error);
-          return false;
-        }
-        return true;
-      } catch (err) {
-        console.error('Supabase ping exception:', err);
-        return false;
-      }
-    }
+    // Firebase Initialize
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
 
     let products = [];
     let sales = [];
     let dailyCosts = {};
     let selectedProdId = null;
 
+    // Login Handler
+    document.getElementById('form-login').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value;
+      const pass = document.getElementById('login-password').value;
+      const errDiv = document.getElementById('login-error');
+
+      auth.signInWithEmailAndPassword(email, pass)
+        .catch(err => {
+          errDiv.textContent = err.message;
+          errDiv.classList.remove('hidden');
+        });
+    });
+
+    function logout() {
+      auth.signOut();
+    }
+
+    // Cloud Listener
+    auth.onAuthStateChanged(user => {
+      const modal = document.getElementById('login-modal');
+      if (user) {
+        modal.classList.add('hidden');
+        initCloudSync();
+      } else {
+        modal.classList.remove('hidden');
+      }
+    });
+
+    function initCloudSync() {
+      db.ref('products').on('value', snap => {
+        const data = snap.val();
+        products = data ? Object.values(data) : [];
+        renderProductSelector();
+        renderDailyView();
+      });
+
+      db.ref('sales').on('value', snap => {
+        const data = snap.val();
+        sales = data ? Object.values(data) : [];
+        renderDailyView();
+      });
+
+      db.ref('dailyCosts').on('value', snap => {
+        dailyCosts = snap.val() || {};
+        const selectedDate = document.getElementById('input-sale-date').value || getTodayString();
+        document.getElementById('input-daily-costing').value = dailyCosts[selectedDate] || 0;
+        renderDailyView();
+      });
+    }
+
     function getTodayString() {
       const today = new Date();
       return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     }
 
-    function formatDayAndDate(dateStr) {
-      if(!dateStr) return '';
-      const d = new Date(dateStr);
-      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-      return `Day: ${days[d.getDay()]}, Date: ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-    }
+    const todayStr = getTodayString();
+    document.getElementById('input-sale-date').value = todayStr;
+    document.getElementById('input-monthly-filter').value = todayStr.substring(0, 7);
 
-    const today = getTodayString();
-    document.getElementById('input-sale-date').value = today;
-    document.getElementById('input-monthly-filter').value = today.substring(0, 7);
-
-    // Initial Data Load
-    async function loadAllData() {
-      try {
-        await fetchProducts();
-        await fetchSales();
-        await fetchDailyCosts();
-      } catch (err) {
-        console.error('Data loading error:', err);
-      } finally {
-        renderProductSelector();
-        renderDailyView();
-      }
-    }
-
-    // --- 2. Data Fetching Functions ---
-    async function fetchProducts() {
-      const { data, error } = await supabaseClient.from('products').select('*').order('id', { ascending: true });
-      if (error) { console.error('Error fetching products:', error); return; }
-      products = data.map(p => ({
-        id: p.id,
-        image: p.image,
-        buying: parseFloat(p.buying),
-        selling: parseFloat(p.selling),
-        grossProfitUnit: parseFloat(p.gross_profit_unit),
-        desc: p.desc || ''
-      }));
-    }
-
-    async function fetchSales() {
-      const { data, error } = await supabaseClient.from('sales').select('*').order('id', { ascending: true });
-      if (error) { console.error('Error fetching sales:', error); return; }
-      sales = data.map(s => ({
-        id: s.id,
-        productId: s.product_id,
-        image: s.image,
-        buying: parseFloat(s.buying),
-        selling: parseFloat(s.selling),
-        desc: s.desc || '',
-        qty: s.qty,
-        grossProfit: parseFloat(s.gross_profit),
-        date: s.date
-      }));
-    }
-
-    async function fetchDailyCosts() {
-      const { data, error } = await supabaseClient.from('daily_costs').select('*');
-      if (error) { console.error('Error fetching costs:', error); return; }
-      dailyCosts = {};
-      data.forEach(c => { dailyCosts[c.date] = parseFloat(c.cost); });
-      
-      const currentDate = document.getElementById('input-sale-date').value || today;
-      if (dailyCosts[currentDate] === undefined) dailyCosts[currentDate] = 23970;
-      document.getElementById('input-daily-costing').value = dailyCosts[currentDate];
-    }
-
-    // --- 3. Calculating Unit Profit Preview ---
-    const buyInp = document.getElementById('input-prod-buy');
-    const sellInp = document.getElementById('input-prod-sell');
-    const unitProfitDisp = document.getElementById('preview-unit-profit');
-
-    function calcPreviewUnitProfit() {
-      const p = (parseFloat(sellInp.value) || 0) - (parseFloat(buyInp.value) || 0);
-      unitProfitDisp.textContent = `৳ ${p.toLocaleString()}`;
-      unitProfitDisp.className = p >= 0 ? "font-bold text-emerald-600 text-sm" : "font-bold text-rose-600 text-sm";
-    }
-    buyInp.addEventListener('input', calcPreviewUnitProfit);
-    sellInp.addEventListener('input', calcPreviewUnitProfit);
-
-    // --- 4. Add Product & Upload to Supabase Storage ---
-    document.getElementById('form-add-product').addEventListener('submit', async (e) => {
+    // Save Product
+    document.getElementById('form-add-product').addEventListener('submit', (e) => {
       e.preventDefault();
-      const fileInput = document.getElementById('input-prod-file');
-      const file = fileInput.files[0];
-      if (!file) return alert('Please select a product picture.');
+      const file = document.getElementById('input-prod-file').files[0];
+      if(!file) return alert('Select image');
 
-      const saveBtn = document.getElementById('btn-save-prod');
-      saveBtn.disabled = true;
-      saveBtn.textContent = 'Uploading...';
-
-      // Ensure Supabase client is ready before attempting storage operations
-      if (!supabaseClient || !supabaseClient.storage || typeof supabaseClient.storage.from !== 'function') {
-        console.error('Supabase client/storage not ready', { supabaseClient });
-        alert('Supabase not initialized correctly. Check console for details (invalid key, CORS, or library load order).');
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'Save Product Image';
-        return;
-      }
-
-      // Optional: perform a quick connectivity/auth test and log result
-      const ready = await testSupabaseConnection();
-      if (!ready) {
-        alert('Failed to contact Supabase. Check your anon key, project URL, and CORS settings (see console).');
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'Save Product Image';
-        return;
-      }
-      try {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}.${fileExt}`;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const id = Date.now();
+        const buy = parseFloat(document.getElementById('input-prod-buy').value);
+        const sell = parseFloat(document.getElementById('input-prod-sell').value);
         
-        // Upload image using supabaseClient
-        const { data: storageData, error: uploadError } = await supabaseClient.storage
-          .from('product-images')
-          .upload(fileName, file);
+        const newProd = {
+          id: id,
+          image: evt.target.result,
+          buying: buy,
+          selling: sell,
+          grossProfitUnit: sell - buy,
+          desc: document.getElementById('input-prod-desc').value || 'Collection'
+        };
 
-        if (uploadError) throw uploadError;
-
-        // Get public URL using supabaseClient
-        const { data: publicUrlData } = supabaseClient.storage
-          .from('product-images')
-          .getPublicUrl(fileName);
-
-        const imageUrl = publicUrlData.publicUrl;
-        const buyingPrice = parseFloat(buyInp.value);
-        const sellingPrice = parseFloat(sellInp.value);
-        const description = document.getElementById('input-prod-desc').value.trim() || 'Exclusive Collection';
-
-        const { error: dbError } = await supabaseClient.from('products').insert([{
-          image: imageUrl,
-          buying: buyingPrice,
-          selling: sellingPrice,
-          gross_profit_unit: sellingPrice - buyingPrice,
-          desc: description
-        }]);
-
-        if (dbError) throw dbError;
-
-        alert('Product picture saved successfully!');
+        db.ref('products/' + id).set(newProd);
         e.target.reset();
-        unitProfitDisp.textContent = '৳ 0';
-        await fetchProducts();
-        renderProductSelector();
-      } catch (err) {
-        alert('Failed to save product: ' + err.message);
-      } finally {
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'Save Product Image';
-      }
+        alert('Product added to Cloud Database!');
+      };
+      reader.readAsDataURL(file);
     });
 
-    // --- 5. Render Product Selector Grid ---
-    function renderProductSelector() {
-      const grid = document.getElementById('product-grid-selector');
-      const currentDate = document.getElementById('input-sale-date').value || today;
-
-      if(products.length === 0) {
-        grid.innerHTML = `<p class="col-span-3 text-[11px] text-slate-400 text-center py-4">No picture uploaded yet. Add product picture above.</p>`;
-        return;
-      }
-
-      grid.innerHTML = products.map(p => {
-        const todayQty = sales
-          .filter(s => s.date === currentDate && s.productId === p.id)
-          .reduce((sum, item) => sum + item.qty, 0);
-
-        return `
-          <div onclick="selectProductCard(${p.id})" id="prod-card-${p.id}" class="relative group prod-select-card cursor-pointer border-2 border-slate-200 hover:border-amber-500 rounded-lg p-1 bg-white flex flex-col items-center text-center transition">
-            <button type="button" onclick="deleteProductPicture(${p.id}, event)" title="Remove Picture" class="absolute -top-1 -right-1 bg-rose-600 hover:bg-rose-700 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] shadow-md z-10 no-print">
-              <i class="fa-solid fa-xmark"></i>
-            </button>
-            <img src="${p.image}" class="img-selector">
-            <div class="mt-1 flex flex-col items-center gap-0.5">
-              <span class="text-[10px] font-bold text-slate-800">৳ ${p.selling}</span>
-              <span class="text-[9px] font-black bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full border border-indigo-200">
-                Today: ${todayQty} Pcs
-              </span>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    async function deleteProductPicture(id, event) {
-      if(event) event.stopPropagation();
-      if(confirm('Are you sure you want to remove this product picture?')) {
-        const { error } = await supabaseClient.from('products').delete().eq('id', id);
-        if(error) return alert('Could not delete product: ' + error.message);
-
-        if(selectedProdId === id) {
-          selectedProdId = null;
-          document.getElementById('selected-prod-id').value = '';
-        }
-        await fetchProducts();
-        await fetchSales();
-        renderProductSelector();
-        renderDailyView();
-        if(!document.getElementById('tab-monthly').classList.contains('hidden')) {
-          renderMonthlySector();
-        }
-      }
-    }
-
-    function selectProductCard(id) {
-      selectedProdId = id;
-      document.getElementById('selected-prod-id').value = id;
-      
-      document.querySelectorAll('.prod-select-card').forEach(c => {
-        c.classList.remove('border-amber-500', 'bg-amber-50', 'ring-2', 'ring-amber-400');
-        c.classList.add('border-slate-200');
-      });
-      const card = document.getElementById(`prod-card-${id}`);
-      if(card) card.classList.add('border-amber-500', 'bg-amber-50', 'ring-2', 'ring-amber-400');
-
-      const currentDate = document.getElementById('input-sale-date').value || today;
-      const existingSale = sales.find(s => s.date === currentDate && s.productId === id);
-      const qtyInput = document.getElementById('input-sale-qty');
-      const submitBtn = document.getElementById('btn-sale-submit');
-
-      if(existingSale) {
-        qtyInput.value = existingSale.qty;
-        submitBtn.textContent = 'Update Sale Entry';
-        submitBtn.className = "w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg text-xs transition";
-      } else {
-        qtyInput.value = 1;
-        submitBtn.textContent = 'Add Sale Entry';
-        submitBtn.className = "w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-xs transition";
-      }
-
-      qtyInput.focus();
-      qtyInput.select();
-    }
-
-    // --- 6. Daily Sale Form Submit ---
-    document.getElementById('form-sale-entry').addEventListener('submit', async (e) => {
+    // Record Sale
+    document.getElementById('form-sale-entry').addEventListener('submit', (e) => {
       e.preventDefault();
-      if(!selectedProdId) return alert('Click on a product picture above to select it.');
+      if(!selectedProdId) return alert('Click on a product image first.');
 
       const qty = parseInt(document.getElementById('input-sale-qty').value) || 1;
       const date = document.getElementById('input-sale-date').value;
       const prod = products.find(p => p.id === selectedProdId);
 
-      const existingSale = sales.find(s => s.date === date && s.productId === prod.id);
+      const saleId = `${date}_${prod.id}`;
+      const saleData = {
+        id: saleId,
+        productId: prod.id,
+        image: prod.image,
+        buying: prod.buying,
+        selling: prod.selling,
+        desc: prod.desc,
+        qty: qty,
+        grossProfit: (prod.selling - prod.buying) * qty,
+        date: date
+      };
 
-      if(existingSale) {
-        const grossProfit = (prod.selling - prod.buying) * qty;
-        const { error } = await supabaseClient.from('sales')
-          .update({ qty: qty, gross_profit: grossProfit })
-          .eq('id', existingSale.id);
-        if(error) return alert('Failed to update sale: ' + error.message);
-        alert('Quantity updated successfully!');
-      } else {
-        const grossProfit = (prod.selling - prod.buying) * qty;
-        const { error } = await supabaseClient.from('sales').insert([{
-          product_id: prod.id,
-          image: prod.image,
-          buying: prod.buying,
-          selling: prod.selling,
-          desc: prod.desc,
-          qty: qty,
-          gross_profit: grossProfit,
-          date: date
-        }]);
-        if(error) return alert('Failed to add sale: ' + error.message);
-        alert('Sale entry added successfully!');
-      }
-
-      await fetchSales();
-      renderDailyView();
-      renderProductSelector();
+      db.ref('sales/' + saleId).set(saleData);
+      alert('Sale entry updated in Cloud!');
     });
 
-    document.getElementById('input-sale-qty').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        document.getElementById('form-sale-entry').requestSubmit();
-      }
-    });
-
-    async function changeSaleQty(saleId, delta) {
-      const currentSale = sales.find(s => s.id === saleId);
-      if(!currentSale) return;
-
-      const newQty = currentSale.qty + delta;
-
-      if(newQty <= 0) {
-        if(confirm('Quantity reached 0 Pcs. Do you want to remove it?')) {
-          const { error } = await supabaseClient.from('sales').delete().eq('id', saleId);
-          if(error) return alert('Error deleting item: ' + error.message);
-        } else {
-          return;
-        }
-      } else {
-        const grossProfit = (currentSale.selling - currentSale.buying) * newQty;
-        const { error } = await supabaseClient.from('sales')
-          .update({ qty: newQty, gross_profit: grossProfit })
-          .eq('id', saleId);
-        if(error) return alert('Error updating quantity: ' + error.message);
-      }
-
-      await fetchSales();
-      renderDailyView();
-      renderProductSelector();
-      
-      if(selectedProdId === currentSale.productId) {
-        selectProductCard(selectedProdId);
-      }
+    function selectProductCard(id) {
+      selectedProdId = id;
+      document.getElementById('selected-prod-id').value = id;
+      document.querySelectorAll('.prod-select-card').forEach(c => c.classList.remove('border-amber-500', 'bg-amber-50'));
+      const card = document.getElementById(`prod-card-${id}`);
+      if(card) card.classList.add('border-amber-500', 'bg-amber-50');
     }
 
-    // --- 7. Managing Daily Boosting Costs ---
-    document.getElementById('input-daily-costing').addEventListener('change', async (e) => {
-      const selectedDate = document.getElementById('input-sale-date').value || today;
-      const costVal = parseFloat(e.target.value) || 0;
-      dailyCosts[selectedDate] = costVal;
+    function renderProductSelector() {
+      const grid = document.getElementById('product-grid-selector');
+      const date = document.getElementById('input-sale-date').value || todayStr;
 
-      const { error } = await supabaseClient.from('daily_costs').upsert({ date: selectedDate, cost: costVal });
-      if(error) console.error('Error saving cost:', error);
-
-      renderDailyView();
-    });
-
-    document.getElementById('input-sale-date').addEventListener('change', async (e) => {
-      const selectedDate = e.target.value;
-      if(dailyCosts[selectedDate] === undefined) dailyCosts[selectedDate] = 0;
-      document.getElementById('input-daily-costing').value = dailyCosts[selectedDate];
-      renderDailyView();
-      renderProductSelector();
-      if(selectedProdId) {
-        selectProductCard(selectedProdId);
+      if(products.length === 0) {
+        grid.innerHTML = `<p class="col-span-3 text-xs text-slate-400 text-center py-4">No products uploaded yet.</p>`;
+        return;
       }
-    });
 
-    async function clearTodayEntries() {
-      const date = document.getElementById('input-sale-date').value;
-      if(confirm(`Delete all sales entries for ${date}?`)) {
-        const { error } = await supabaseClient.from('sales').delete().eq('date', date);
-        if(error) return alert('Error clearing entries: ' + error.message);
-        await fetchSales();
-        renderDailyView();
-        renderProductSelector();
-      }
+      grid.innerHTML = products.map(p => {
+        const todayQty = sales
+          .filter(s => s.date === date && s.productId === p.id)
+          .reduce((sum, item) => sum + item.qty, 0);
+
+        return `
+          <div onclick="selectProductCard(${p.id})" id="prod-card-${p.id}" class="prod-select-card cursor-pointer border-2 border-slate-200 hover:border-amber-500 rounded-lg p-1 bg-white flex flex-col items-center transition">
+            <img src="${p.image}" class="img-selector">
+            <span class="text-[10px] font-bold text-slate-800 mt-1">৳ ${p.selling}</span>
+            <span class="text-[9px] font-black bg-indigo-100 text-indigo-700 px-1 rounded-full border border-indigo-200">
+              Today: ${todayQty} Pcs
+            </span>
+          </div>
+        `;
+      }).join('');
     }
 
-    async function deleteSaleItem(id) {
-      if(confirm('Delete this item?')) {
-        const { error } = await supabaseClient.from('sales').delete().eq('id', id);
-        if(error) return alert('Error deleting item: ' + error.message);
-        await fetchSales();
-        renderDailyView();
-        renderProductSelector();
-      }
-    }
-
-    // --- 8. Render Views ---
     function renderDailyView() {
-      const date = document.getElementById('input-sale-date').value || today;
-      const formattedDate = formatDayAndDate(date);
-
-      document.getElementById('summary-header-date').textContent = formattedDate;
-      document.getElementById('print-date-display').textContent = formattedDate;
-      document.getElementById('table-date-subtitle').textContent = formattedDate;
+      const date = document.getElementById('input-sale-date').value || todayStr;
+      document.getElementById('summary-header-date').textContent = `Date: ${date}`;
 
       const todaysSales = sales.filter(s => s.date === date);
       const totalQty = todaysSales.reduce((a, b) => a + b.qty, 0);
       const grossProfit = todaysSales.reduce((a, b) => a + b.grossProfit, 0);
       const costing = parseFloat(document.getElementById('input-daily-costing').value) || 0;
-      const perProductCost = totalQty > 0 ? Math.round(costing / totalQty) : 0;
       const netProfit = grossProfit - costing;
 
-      document.getElementById('summary-qty').textContent = totalQty.toLocaleString();
-      document.getElementById('summary-gross-profit').textContent = grossProfit.toLocaleString();
-      document.getElementById('summary-costing').textContent = costing.toLocaleString();
-      document.getElementById('summary-per-product-cost').textContent = perProductCost.toLocaleString();
-
-      const totalProfitSpan = document.getElementById('summary-total-profit');
-      totalProfitSpan.textContent = netProfit.toLocaleString();
-      totalProfitSpan.className = netProfit >= 0 ? "font-extrabold text-base text-emerald-700" : "font-extrabold text-base text-rose-600";
+      document.getElementById('summary-qty').textContent = totalQty;
+      document.getElementById('summary-gross-profit').textContent = `৳ ${grossProfit.toLocaleString()}`;
+      document.getElementById('summary-costing').textContent = `৳ ${costing.toLocaleString()}`;
+      document.getElementById('summary-per-product-cost').textContent = `৳ ${totalQty > 0 ? Math.round(costing / totalQty) : 0}`;
+      
+      const netSpan = document.getElementById('summary-total-profit');
+      netSpan.textContent = `৳ ${netProfit.toLocaleString()}`;
+      netSpan.className = netProfit >= 0 ? "font-extrabold text-base text-emerald-700" : "font-extrabold text-base text-rose-600";
 
       const tbody = document.getElementById('tbody-daily-sales');
       if(todaysSales.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400">No sales entries for ${date}.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400">No sales recorded for ${date}.</td></tr>`;
         return;
       }
 
       tbody.innerHTML = todaysSales.map((s, idx) => `
         <tr class="hover:bg-slate-50 border-b border-slate-200">
-          <td class="p-3 text-center font-bold text-slate-500">${idx + 1}.</td>
-          <td class="p-3"><img src="${s.image}" class="img-large shadow-sm"></td>
-          <td class="p-3 font-medium text-slate-600 text-xs leading-relaxed">
-            <div>Quantity</div><div>Selling Price</div><div>Buying Price</div><div>Gross Profit</div>
+          <td class="p-3 text-center font-bold text-slate-500">${idx + 1}</td>
+          <td class="p-3"><img src="${s.image}" class="img-large"></td>
+          <td class="p-3 text-xs leading-relaxed">
+            <div>Qty: <b class="text-indigo-700 font-extrabold">${s.qty} Pcs</b></div>
+            <div>Selling: ৳${s.selling}</div>
+            <div>Buying: ৳${s.buying}</div>
           </td>
-          <td class="p-3 font-semibold text-slate-800 text-xs leading-relaxed">
-            <div class="flex items-center gap-2 mb-1.5 no-print">
-              <button type="button" onclick="changeSaleQty(${s.id}, -1)" title="Decrease Qty" class="w-6 h-6 bg-slate-200 hover:bg-rose-500 hover:text-white font-black rounded-md text-xs flex items-center justify-center transition shadow-sm">-</button>
-              <span class="font-extrabold text-indigo-700 text-sm px-1">${s.qty} Pcs</span>
-              <button type="button" onclick="changeSaleQty(${s.id}, 1)" title="Increase Qty" class="w-6 h-6 bg-slate-200 hover:bg-emerald-500 hover:text-white font-black rounded-md text-xs flex items-center justify-center transition shadow-sm">+</button>
-            </div>
-            <div class="hidden print:block font-extrabold text-indigo-700 text-sm">${s.qty} Pcs</div>
-
-            <div>৳ ${s.selling.toLocaleString()}</div>
-            <div>৳ ${s.buying.toLocaleString()}</div>
-            <div class="font-bold text-emerald-600">৳ ${s.grossProfit.toLocaleString()}</div>
-          </td>
-          <td class="p-3 text-slate-700 text-xs font-medium">${s.desc}</td>
+          <td class="p-3 text-xs font-bold text-emerald-600">৳ ${s.grossProfit.toLocaleString()}</td>
+          <td class="p-3 text-xs text-slate-600">${s.desc}</td>
           <td class="p-3 text-center no-print">
-            <button type="button" onclick="deleteSaleItem(${s.id})" class="text-rose-500 hover:text-rose-700 font-bold p-1"><i class="fa-solid fa-trash-can"></i></button>
+            <button onclick="deleteSale('${s.id}')" class="text-rose-500 hover:text-rose-700 font-bold p-1"><i class="fa-solid fa-trash"></i></button>
           </td>
         </tr>
       `).join('');
     }
+
+    function deleteSale(id) {
+      if(confirm('Delete sale entry?')) {
+        db.ref('sales/' + id).remove();
+      }
+    }
+
+    document.getElementById('input-daily-costing').addEventListener('change', (e) => {
+      const date = document.getElementById('input-sale-date').value || todayStr;
+      db.ref('dailyCosts/' + date).set(parseFloat(e.target.value) || 0);
+    });
+
+    document.getElementById('input-sale-date').addEventListener('change', (e) => {
+      const selectedDate = e.target.value;
+      document.getElementById('input-daily-costing').value = dailyCosts[selectedDate] || 0;
+      renderDailyView();
+      renderProductSelector();
+    });
 
     function switchTab(tab) {
       document.getElementById('tab-daily').classList.toggle('hidden', tab !== 'daily');
@@ -766,7 +481,7 @@
 
     function renderMonthlySector() {
       const month = document.getElementById('input-monthly-filter').value;
-      const monthlySales = sales.filter(s => s.date && s.date.startsWith(month));
+      const monthlySales = sales.filter(s => s.date.startsWith(month));
 
       const totalQty = monthlySales.reduce((a, b) => a + b.qty, 0);
       const grossProfit = monthlySales.reduce((a, b) => a + b.grossProfit, 0);
@@ -774,45 +489,31 @@
       let totalCosting = 0;
       Object.keys(dailyCosts).forEach(d => { if(d.startsWith(month)) totalCosting += dailyCosts[d]; });
 
-      const netProfit = grossProfit - totalCosting;
-
-      document.getElementById('m-stat-qty').textContent = `${totalQty.toLocaleString()} Pcs`;
+      document.getElementById('m-stat-qty').textContent = `${totalQty} Pcs`;
       document.getElementById('m-stat-gross').textContent = `৳ ${grossProfit.toLocaleString()}`;
       document.getElementById('m-stat-costing').textContent = `৳ ${totalCosting.toLocaleString()}`;
-      
-      const netElem = document.getElementById('m-stat-net');
-      netElem.textContent = `৳ ${netProfit.toLocaleString()}`;
-      netElem.className = netProfit >= 0 ? "text-2xl font-black mt-1 text-slate-950" : "text-2xl font-black mt-1 text-rose-700";
+      document.getElementById('m-stat-net').textContent = `৳ ${(grossProfit - totalCosting).toLocaleString()}`;
 
       const tbody = document.getElementById('tbody-monthly-products');
-      if(products.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">No products uploaded.</td></tr>`;
-        return;
-      }
-
       tbody.innerHTML = products.map((p, idx) => {
         const pSales = monthlySales.filter(s => s.productId === p.id);
         const pQty = pSales.reduce((a, b) => a + b.qty, 0);
-        const pProfit = pQty * p.grossProfitUnit;
 
         return `
           <tr class="hover:bg-slate-50 border-b border-slate-200">
-            <td class="p-3 text-center font-bold text-slate-500">${idx + 1}.</td>
-            <td class="p-3"><img src="${p.image}" class="img-large shadow-sm"></td>
-            <td class="p-3 font-semibold text-slate-700">৳ ${p.buying.toLocaleString()}</td>
-            <td class="p-3 font-semibold text-slate-900">৳ ${p.selling.toLocaleString()}</td>
-            <td class="p-3 font-bold text-emerald-600">৳ ${p.grossProfitUnit.toLocaleString()}</td>
-            <td class="p-3 font-black text-indigo-700 text-sm">${pQty.toLocaleString()} Pcs</td>
-            <td class="p-3 font-black text-emerald-700 text-sm">৳ ${pProfit.toLocaleString()}</td>
+            <td class="p-3 text-center font-bold text-slate-500">${idx + 1}</td>
+            <td class="p-3"><img src="${p.image}" class="img-large"></td>
+            <td class="p-3 font-semibold">৳ ${p.buying}</td>
+            <td class="p-3 font-semibold">৳ ${p.selling}</td>
+            <td class="p-3 font-bold text-emerald-600">৳ ${p.grossProfitUnit}</td>
+            <td class="p-3 font-black text-indigo-700">${pQty} Pcs</td>
+            <td class="p-3 font-black text-emerald-700">৳ ${(pQty * p.grossProfitUnit).toLocaleString()}</td>
           </tr>
         `;
       }).join('');
     }
 
     document.getElementById('input-monthly-filter').addEventListener('change', renderMonthlySector);
-
-    // Run Initial Load
-    loadAllData();
-</script>
+  </script>
 </body>
 </html>
