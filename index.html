@@ -284,7 +284,7 @@
 
   </main>
 
-  <script>
+<script>
     // --- 1. Supabase Initialization ---
     const SUPABASE_URL = 'https://uwbaodztrzofrnomrxde.supabase.co/';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3YmFvZHp0cnpvZnJub21yeGRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5MjIxMzQsImV4cCI6MjEwMTQ5ODEzNH0.D6q734KEJyA0Oh0smjQPXSHZMsil9oMdUEOLaRix4vM';
@@ -313,16 +313,21 @@
 
     // Initial Data Load
     async function loadAllData() {
-      await fetchProducts();
-      await fetchSales();
-      await fetchDailyCosts();
-      renderProductSelector();
-      renderDailyView();
+      try {
+        await fetchProducts();
+        await fetchSales();
+        await fetchDailyCosts();
+      } catch (err) {
+        console.error('Data loading error:', err);
+      } finally {
+        renderProductSelector();
+        renderDailyView();
+      }
     }
 
     // --- 2. Data Fetching Functions ---
     async function fetchProducts() {
-      const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: true });
+      const { data, error } = await supabase.from('products').select('*').order('id', { ascending: true });
       if (error) { console.error('Error fetching products:', error); return; }
       products = data.map(p => ({
         id: p.id,
@@ -330,12 +335,12 @@
         buying: parseFloat(p.buying),
         selling: parseFloat(p.selling),
         grossProfitUnit: parseFloat(p.gross_profit_unit),
-        desc: p.desc
+        desc: p.desc || ''
       }));
     }
 
     async function fetchSales() {
-      const { data, error } = await supabase.from('sales').select('*').order('created_at', { ascending: true });
+      const { data, error } = await supabase.from('sales').select('*').order('id', { ascending: true });
       if (error) { console.error('Error fetching sales:', error); return; }
       sales = data.map(s => ({
         id: s.id,
@@ -343,7 +348,7 @@
         image: s.image,
         buying: parseFloat(s.buying),
         selling: parseFloat(s.selling),
-        desc: s.desc,
+        desc: s.desc || '',
         qty: s.qty,
         grossProfit: parseFloat(s.gross_profit),
         date: s.date
@@ -386,7 +391,6 @@
       saveBtn.textContent = 'Uploading...';
 
       try {
-        // Upload image file to Supabase Storage bucket 'product-images'
         const fileExt = file.name.split('.').pop();
         const fileName = `${Date.now()}.${fileExt}`;
         const { data: storageData, error: uploadError } = await supabase.storage
@@ -395,7 +399,6 @@
 
         if (uploadError) throw uploadError;
 
-        // Obtain Public URL
         const { data: publicUrlData } = supabase.storage
           .from('product-images')
           .getPublicUrl(fileName);
@@ -405,7 +408,6 @@
         const sellingPrice = parseFloat(sellInp.value);
         const description = document.getElementById('input-prod-desc').value.trim() || 'Exclusive Collection';
 
-        // Insert Product into Database
         const { error: dbError } = await supabase.from('products').insert([{
           image: imageUrl,
           buying: buyingPrice,
@@ -416,7 +418,7 @@
 
         if (dbError) throw dbError;
 
-        alert('Product picture saved successfully to Supabase!');
+        alert('Product picture saved successfully!');
         e.target.reset();
         unitProfitDisp.textContent = '৳ 0';
         await fetchProducts();
@@ -706,7 +708,7 @@
 
     function renderMonthlySector() {
       const month = document.getElementById('input-monthly-filter').value;
-      const monthlySales = sales.filter(s => s.date.startsWith(month));
+      const monthlySales = sales.filter(s => s.date && s.date.startsWith(month));
 
       const totalQty = monthlySales.reduce((a, b) => a + b.qty, 0);
       const grossProfit = monthlySales.reduce((a, b) => a + b.grossProfit, 0);
