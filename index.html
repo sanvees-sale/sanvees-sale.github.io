@@ -6,6 +6,8 @@
   <title>Sanvee's Daily Sale & Monthly Profit Tracker</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <!-- Include Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     @media print {
       .no-print { display: none !important; }
@@ -137,14 +139,14 @@
           </form>
         </div>
 
-        <!-- 3. Summary Card (Matching User Image Format) -->
+        <!-- 3. Summary Card -->
         <div class="bg-amber-100/90 border-2 border-slate-900 rounded-2xl p-5 shadow-sm text-slate-900 flex flex-col justify-between card-shadow">
           <div>
             <div class="bg-amber-200/80 border border-slate-800 text-center py-2 px-3 rounded-lg font-black text-lg uppercase tracking-wider mb-2">
               Sanvee's Daily Sale
             </div>
             <div id="summary-header-date" class="bg-rose-300/80 border border-slate-800 text-center py-1.5 px-3 rounded-lg font-bold text-xs mb-4">
-              Day: Thursday, Date: 06/08/2026
+              Day: Loading...
             </div>
 
             <div class="mb-4 no-print bg-white p-3 rounded-xl border border-amber-300 shadow-inner">
@@ -152,7 +154,7 @@
                 <span>Daily Boosting Cost (৳):</span>
                 <i class="fa-solid fa-rectangle-ad text-rose-500"></i>
               </label>
-              <input type="number" id="input-daily-costing" value="23970" min="0" class="w-full border border-slate-300 rounded-lg p-2 text-right font-black text-base text-slate-900 outline-none focus:ring-2 focus:ring-amber-500">
+              <input type="number" id="input-daily-costing" value="0" min="0" class="w-full border border-slate-300 rounded-lg p-2 text-right font-black text-base text-slate-900 outline-none focus:ring-2 focus:ring-amber-500">
             </div>
 
             <div class="border border-slate-900 rounded-xl overflow-hidden bg-white text-xs font-semibold divide-y divide-slate-800">
@@ -282,13 +284,14 @@
   </main>
 
   <script>
-    const KEY_PRODUCTS = 'sanvee_eng_products_v1';
-    const KEY_SALES = 'sanvee_eng_sales_v1';
-    const KEY_COSTS = 'sanvee_eng_costs_v1';
+    // --- Supabase Configuration ---
+    const SUPABASE_URL = 'https://uwbaodztrzofrnomrxde.supabase.co/';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3YmFvZHp0cnpvZnJub21yeGRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5MjIxMzQsImV4cCI6MjEwMTQ5ODEzNH0.D6q734KEJyA0Oh0smjQPXSHZMsil9oMdUEOLaRix4vM';
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    let products = JSON.parse(localStorage.getItem(KEY_PRODUCTS)) || [];
-    let sales = JSON.parse(localStorage.getItem(KEY_SALES)) || [];
-    let dailyCosts = JSON.parse(localStorage.getItem(KEY_COSTS)) || {};
+    let products = [];
+    let sales = [];
+    let dailyCosts = {};
     let selectedProdId = null;
 
     function getTodayString() {
@@ -297,7 +300,7 @@
     }
 
     function formatDayAndDate(dateStr) {
-      if(!dateStr) return '';
+      if (!dateStr) return '';
       const d = new Date(dateStr);
       const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
       return `Day: ${days[d.getDay()]}, Date: ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
@@ -307,8 +310,49 @@
     document.getElementById('input-sale-date').value = today;
     document.getElementById('input-monthly-filter').value = today.substring(0, 7);
 
-    if(dailyCosts[today] === undefined) dailyCosts[today] = 23970;
-    document.getElementById('input-daily-costing').value = dailyCosts[today];
+    // Initial Load from Supabase
+    async function init() {
+      // 1. Fetch Products
+      const { data: prodData, error: pErr } = await db.from('pos_products').select('*');
+      if (pErr) console.error('Error fetching products:', pErr);
+      products = (prodData || []).map(p => ({
+        id: p.id,
+        image: p.image,
+        buying: Number(p.buying),
+        selling: Number(p.selling),
+        grossProfitUnit: Number(p.gross_profit_unit),
+        desc: p.desc_text
+      }));
+
+      // 2. Fetch Sales
+      const { data: saleData, error: sErr } = await db.from('pos_sales').select('*');
+      if (sErr) console.error('Error fetching sales:', sErr);
+      sales = (saleData || []).map(s => ({
+        id: s.id,
+        productId: s.product_id,
+        image: s.image,
+        buying: Number(s.buying),
+        selling: Number(s.selling),
+        desc: s.desc_text,
+        qty: Number(s.qty),
+        grossProfit: Number(s.gross_profit),
+        date: s.date_str
+      }));
+
+      // 3. Fetch Daily Costs
+      const { data: costData, error: cErr } = await db.from('pos_daily_costs').select('*');
+      if (cErr) console.error('Error fetching costs:', cErr);
+      dailyCosts = {};
+      (costData || []).forEach(c => {
+        dailyCosts[c.date_str] = Number(c.costing);
+      });
+
+      if (dailyCosts[today] === undefined) dailyCosts[today] = 23970;
+      document.getElementById('input-daily-costing').value = dailyCosts[today];
+
+      renderProductSelector();
+      renderDailyView();
+    }
 
     const buyInp = document.getElementById('input-prod-buy');
     const sellInp = document.getElementById('input-prod-sell');
@@ -322,22 +366,35 @@
     buyInp.addEventListener('input', calcPreviewUnitProfit);
     sellInp.addEventListener('input', calcPreviewUnitProfit);
 
-    document.getElementById('form-add-product').addEventListener('submit', (e) => {
+    // Add Product
+    document.getElementById('form-add-product').addEventListener('submit', async (e) => {
       e.preventDefault();
       const file = document.getElementById('input-prod-file').files[0];
-      if(!file) return alert('Please select a product picture.');
+      if (!file) return alert('Please select a product picture.');
 
       const reader = new FileReader();
-      reader.onload = function(evt) {
-        products.push({
+      reader.onload = async function(evt) {
+        const newProd = {
           id: Date.now(),
           image: evt.target.result,
           buying: parseFloat(buyInp.value),
           selling: parseFloat(sellInp.value),
-          grossProfitUnit: parseFloat(sellInp.value) - parseFloat(buyInp.value),
-          desc: document.getElementById('input-prod-desc').value.trim() || 'Exclusive Collection'
+          gross_profit_unit: parseFloat(sellInp.value) - parseFloat(buyInp.value),
+          desc_text: document.getElementById('input-prod-desc').value.trim() || 'Exclusive Collection'
+        };
+
+        const { error } = await db.from('pos_products').insert([newProd]);
+        if (error) return alert('Error saving product: ' + error.message);
+
+        products.push({
+          id: newProd.id,
+          image: newProd.image,
+          buying: newProd.buying,
+          selling: newProd.selling,
+          grossProfitUnit: newProd.gross_profit_unit,
+          desc: newProd.desc_text
         });
-        localStorage.setItem(KEY_PRODUCTS, JSON.stringify(products));
+
         e.target.reset();
         unitProfitDisp.textContent = '৳ 0';
         renderProductSelector();
@@ -348,7 +405,7 @@
 
     function renderProductSelector() {
       const grid = document.getElementById('product-grid-selector');
-      if(products.length === 0) {
+      if (products.length === 0) {
         grid.innerHTML = `<p class="col-span-3 text-[11px] text-slate-400 text-center py-4">No picture uploaded yet. Add product picture above.</p>`;
         return;
       }
@@ -368,61 +425,86 @@
         c.classList.add('border-slate-200');
       });
       const card = document.getElementById(`prod-card-${id}`);
-      if(card) card.classList.add('border-amber-500', 'bg-amber-50', 'ring-2', 'ring-amber-400');
+      if (card) card.classList.add('border-amber-500', 'bg-amber-50', 'ring-2', 'ring-amber-400');
     }
 
-    document.getElementById('form-sale-entry').addEventListener('submit', (e) => {
+    // Add Sale Entry
+    document.getElementById('form-sale-entry').addEventListener('submit', async (e) => {
       e.preventDefault();
-      if(!selectedProdId) return alert('Click on a product picture above to select it.');
+      if (!selectedProdId) return alert('Click on a product picture above to select it.');
 
       const qty = parseInt(document.getElementById('input-sale-qty').value) || 1;
       const date = document.getElementById('input-sale-date').value;
       const prod = products.find(p => p.id === selectedProdId);
 
-      sales.push({
+      const newSale = {
         id: Date.now(),
-        productId: prod.id,
+        product_id: prod.id,
         image: prod.image,
         buying: prod.buying,
         selling: prod.selling,
-        desc: prod.desc,
+        desc_text: prod.desc,
         qty: qty,
-        grossProfit: (prod.selling - prod.buying) * qty,
-        date: date
+        gross_profit: (prod.selling - prod.buying) * qty,
+        date_str: date
+      };
+
+      const { error } = await db.from('pos_sales').insert([newSale]);
+      if (error) return alert('Error saving sale: ' + error.message);
+
+      sales.push({
+        id: newSale.id,
+        productId: newSale.product_id,
+        image: newSale.image,
+        buying: newSale.buying,
+        selling: newSale.selling,
+        desc: newSale.desc_text,
+        qty: newSale.qty,
+        grossProfit: newSale.gross_profit,
+        date: newSale.date_str
       });
 
-      localStorage.setItem(KEY_SALES, JSON.stringify(sales));
       renderDailyView();
       alert('Sale entry added successfully!');
     });
 
-    document.getElementById('input-daily-costing').addEventListener('input', (e) => {
+    // Save Daily Cost
+    document.getElementById('input-daily-costing').addEventListener('change', async (e) => {
       const selectedDate = document.getElementById('input-sale-date').value || today;
-      dailyCosts[selectedDate] = parseFloat(e.target.value) || 0;
-      localStorage.setItem(KEY_COSTS, JSON.stringify(dailyCosts));
+      const costVal = parseFloat(e.target.value) || 0;
+      dailyCosts[selectedDate] = costVal;
+
+      const { error } = await db.from('pos_daily_costs').upsert([{ date_str: selectedDate, costing: costVal }]);
+      if (error) console.error('Error saving cost:', error);
       renderDailyView();
     });
 
     document.getElementById('input-sale-date').addEventListener('change', (e) => {
       const selectedDate = e.target.value;
-      if(dailyCosts[selectedDate] === undefined) dailyCosts[selectedDate] = 0;
+      if (dailyCosts[selectedDate] === undefined) dailyCosts[selectedDate] = 0;
       document.getElementById('input-daily-costing').value = dailyCosts[selectedDate];
       renderDailyView();
     });
 
-    function clearTodayEntries() {
+    // Clear Sales for Selected Date
+    async function clearTodayEntries() {
       const date = document.getElementById('input-sale-date').value;
-      if(confirm(`Delete all sales entries for ${date}?`)) {
+      if (confirm(`Delete all sales entries for ${date}?`)) {
+        const { error } = await db.from('pos_sales').delete().eq('date_str', date);
+        if (error) return alert('Error clearing entries: ' + error.message);
+
         sales = sales.filter(s => s.date !== date);
-        localStorage.setItem(KEY_SALES, JSON.stringify(sales));
         renderDailyView();
       }
     }
 
-    function deleteSaleItem(id) {
-      if(confirm('Delete this item?')) {
+    // Delete Single Sale Item
+    async function deleteSaleItem(id) {
+      if (confirm('Delete this item?')) {
+        const { error } = await db.from('pos_sales').delete().eq('id', id);
+        if (error) return alert('Error deleting item: ' + error.message);
+
         sales = sales.filter(s => s.id !== id);
-        localStorage.setItem(KEY_SALES, JSON.stringify(sales));
         renderDailyView();
       }
     }
@@ -452,7 +534,7 @@
       totalProfitSpan.className = netProfit >= 0 ? "font-extrabold text-base text-emerald-700" : "font-extrabold text-base text-rose-600";
 
       const tbody = document.getElementById('tbody-daily-sales');
-      if(todaysSales.length === 0) {
+      if (todaysSales.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400">No sales entries for ${date}.</td></tr>`;
         return;
       }
@@ -490,7 +572,7 @@
         ? "flex-1 py-3 text-center border-b-2 border-amber-500 text-amber-400 bg-slate-900 font-bold flex justify-center items-center gap-2"
         : "flex-1 py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-white flex justify-center items-center gap-2";
 
-      if(tab === 'monthly') renderMonthlySector();
+      if (tab === 'monthly') renderMonthlySector();
     }
 
     function renderMonthlySector() {
@@ -501,7 +583,7 @@
       const grossProfit = monthlySales.reduce((a, b) => a + b.grossProfit, 0);
 
       let totalCosting = 0;
-      Object.keys(dailyCosts).forEach(d => { if(d.startsWith(month)) totalCosting += dailyCosts[d]; });
+      Object.keys(dailyCosts).forEach(d => { if (d.startsWith(month)) totalCosting += dailyCosts[d]; });
 
       const netProfit = grossProfit - totalCosting;
 
@@ -514,7 +596,7 @@
       netElem.className = netProfit >= 0 ? "text-2xl font-black mt-1 text-slate-950" : "text-2xl font-black mt-1 text-rose-700";
 
       const tbody = document.getElementById('tbody-monthly-products');
-      if(products.length === 0) {
+      if (products.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">No products uploaded.</td></tr>`;
         return;
       }
@@ -540,8 +622,8 @@
 
     document.getElementById('input-monthly-filter').addEventListener('change', renderMonthlySector);
 
-    renderProductSelector();
-    renderDailyView();
+    // Initialize Application
+    init();
   </script>
 </body>
 </html>
