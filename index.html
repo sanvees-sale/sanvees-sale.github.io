@@ -287,7 +287,7 @@
 <script>
     // --- 1. Supabase Initialization ---
     const SUPABASE_URL = 'https://uwbaodztrzofrnomrxde.supabase.co/';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6...'; // Keep your full key here
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3YmFvZHp0cnpvZnJub21yeGRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5MjIxMzQsImV4cCI6MjEwMTQ5ODEzNH0.D6q734KEJyA0Oh0smjQPXSHZMsil9oMdUEOLaRix4vM';
     
     // Initialize Supabase client defensively to avoid undefined storage errors
     let supabaseClient;
@@ -302,6 +302,30 @@
     } catch (initErr) {
       console.error('Supabase initialization error:', initErr);
       alert('Supabase initialization failed. Check console for details.');
+    }
+
+    // Basic readiness check for supabase usage
+    async function testSupabaseConnection() {
+      if (!supabaseClient) {
+        console.error('Supabase client not available');
+        return false;
+      }
+      if (!supabaseClient.from || !supabaseClient.storage) {
+        console.error('Supabase client missing expected methods', supabaseClient);
+        return false;
+      }
+      try {
+        // Try a lightweight request to detect auth/key or CORS issues early
+        const { data, error } = await supabaseClient.from('products').select('id').limit(1);
+        if (error) {
+          console.error('Supabase ping error:', error);
+          return false;
+        }
+        return true;
+      } catch (err) {
+        console.error('Supabase ping exception:', err);
+        return false;
+      }
     }
 
     let products = [];
@@ -404,6 +428,23 @@
       saveBtn.disabled = true;
       saveBtn.textContent = 'Uploading...';
 
+      // Ensure Supabase client is ready before attempting storage operations
+      if (!supabaseClient || !supabaseClient.storage || typeof supabaseClient.storage.from !== 'function') {
+        console.error('Supabase client/storage not ready', { supabaseClient });
+        alert('Supabase not initialized correctly. Check console for details (invalid key, CORS, or library load order).');
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save Product Image';
+        return;
+      }
+
+      // Optional: perform a quick connectivity/auth test and log result
+      const ready = await testSupabaseConnection();
+      if (!ready) {
+        alert('Failed to contact Supabase. Check your anon key, project URL, and CORS settings (see console).');
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save Product Image';
+        return;
+      }
       try {
         const fileExt = file.name.split('.').pop();
         const fileName = `${Date.now()}.${fileExt}`;
