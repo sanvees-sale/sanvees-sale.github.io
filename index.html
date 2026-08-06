@@ -287,10 +287,10 @@
 <script>
     // --- 1. Supabase Initialization ---
     const SUPABASE_URL = 'https://uwbaodztrzofrnomrxde.supabase.co/';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3YmFvZHp0cnpvZnJub21yeGRlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5MjIxMzQsImV4cCI6MjEwMTQ5ODEzNH0.D6q734KEJyA0Oh0smjQPXSHZMsil9oMdUEOLaRix4vM';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6...'; // Keep your full key here
     
-    // Fixed: Named instance 'supabase' so all database functions can find it
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // Renamed instance to 'supabaseClient' to prevent variable collision with window.supabase
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     let products = [];
     let sales = [];
@@ -329,7 +329,7 @@
 
     // --- 2. Data Fetching Functions ---
     async function fetchProducts() {
-      const { data, error } = await supabase.from('products').select('*').order('id', { ascending: true });
+      const { data, error } = await supabaseClient.from('products').select('*').order('id', { ascending: true });
       if (error) { console.error('Error fetching products:', error); return; }
       products = data.map(p => ({
         id: p.id,
@@ -342,7 +342,7 @@
     }
 
     async function fetchSales() {
-      const { data, error } = await supabase.from('sales').select('*').order('id', { ascending: true });
+      const { data, error } = await supabaseClient.from('sales').select('*').order('id', { ascending: true });
       if (error) { console.error('Error fetching sales:', error); return; }
       sales = data.map(s => ({
         id: s.id,
@@ -358,7 +358,7 @@
     }
 
     async function fetchDailyCosts() {
-      const { data, error } = await supabase.from('daily_costs').select('*');
+      const { data, error } = await supabaseClient.from('daily_costs').select('*');
       if (error) { console.error('Error fetching costs:', error); return; }
       dailyCosts = {};
       data.forEach(c => { dailyCosts[c.date] = parseFloat(c.cost); });
@@ -395,13 +395,16 @@
       try {
         const fileExt = file.name.split('.').pop();
         const fileName = `${Date.now()}.${fileExt}`;
-        const { data: storageData, error: uploadError } = await supabase.storage
+        
+        // Upload image using supabaseClient
+        const { data: storageData, error: uploadError } = await supabaseClient.storage
           .from('product-images')
           .upload(fileName, file);
 
         if (uploadError) throw uploadError;
 
-        const { data: publicUrlData } = supabase.storage
+        // Get public URL using supabaseClient
+        const { data: publicUrlData } = supabaseClient.storage
           .from('product-images')
           .getPublicUrl(fileName);
 
@@ -410,7 +413,7 @@
         const sellingPrice = parseFloat(sellInp.value);
         const description = document.getElementById('input-prod-desc').value.trim() || 'Exclusive Collection';
 
-        const { error: dbError } = await supabase.from('products').insert([{
+        const { error: dbError } = await supabaseClient.from('products').insert([{
           image: imageUrl,
           buying: buyingPrice,
           selling: sellingPrice,
@@ -468,7 +471,7 @@
     async function deleteProductPicture(id, event) {
       if(event) event.stopPropagation();
       if(confirm('Are you sure you want to remove this product picture?')) {
-        const { error } = await supabase.from('products').delete().eq('id', id);
+        const { error } = await supabaseClient.from('products').delete().eq('id', id);
         if(error) return alert('Could not delete product: ' + error.message);
 
         if(selectedProdId === id) {
@@ -528,14 +531,14 @@
 
       if(existingSale) {
         const grossProfit = (prod.selling - prod.buying) * qty;
-        const { error } = await supabase.from('sales')
+        const { error } = await supabaseClient.from('sales')
           .update({ qty: qty, gross_profit: grossProfit })
           .eq('id', existingSale.id);
         if(error) return alert('Failed to update sale: ' + error.message);
         alert('Quantity updated successfully!');
       } else {
         const grossProfit = (prod.selling - prod.buying) * qty;
-        const { error } = await supabase.from('sales').insert([{
+        const { error } = await supabaseClient.from('sales').insert([{
           product_id: prod.id,
           image: prod.image,
           buying: prod.buying,
@@ -569,14 +572,14 @@
 
       if(newQty <= 0) {
         if(confirm('Quantity reached 0 Pcs. Do you want to remove it?')) {
-          const { error } = await supabase.from('sales').delete().eq('id', saleId);
+          const { error } = await supabaseClient.from('sales').delete().eq('id', saleId);
           if(error) return alert('Error deleting item: ' + error.message);
         } else {
           return;
         }
       } else {
         const grossProfit = (currentSale.selling - currentSale.buying) * newQty;
-        const { error } = await supabase.from('sales')
+        const { error } = await supabaseClient.from('sales')
           .update({ qty: newQty, gross_profit: grossProfit })
           .eq('id', saleId);
         if(error) return alert('Error updating quantity: ' + error.message);
@@ -597,7 +600,7 @@
       const costVal = parseFloat(e.target.value) || 0;
       dailyCosts[selectedDate] = costVal;
 
-      const { error } = await supabase.from('daily_costs').upsert({ date: selectedDate, cost: costVal });
+      const { error } = await supabaseClient.from('daily_costs').upsert({ date: selectedDate, cost: costVal });
       if(error) console.error('Error saving cost:', error);
 
       renderDailyView();
@@ -617,7 +620,7 @@
     async function clearTodayEntries() {
       const date = document.getElementById('input-sale-date').value;
       if(confirm(`Delete all sales entries for ${date}?`)) {
-        const { error } = await supabase.from('sales').delete().eq('date', date);
+        const { error } = await supabaseClient.from('sales').delete().eq('date', date);
         if(error) return alert('Error clearing entries: ' + error.message);
         await fetchSales();
         renderDailyView();
@@ -627,7 +630,7 @@
 
     async function deleteSaleItem(id) {
       if(confirm('Delete this item?')) {
-        const { error } = await supabase.from('sales').delete().eq('id', id);
+        const { error } = await supabaseClient.from('sales').delete().eq('id', id);
         if(error) return alert('Error deleting item: ' + error.message);
         await fetchSales();
         renderDailyView();
@@ -757,6 +760,6 @@
 
     // Run Initial Load
     loadAllData();
-  </script>
+</script>
 </body>
 </html>
