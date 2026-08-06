@@ -289,8 +289,20 @@
     const SUPABASE_URL = 'https://uwbaodztrzofrnomrxde.supabase.co/';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6...'; // Keep your full key here
     
-    // Renamed instance to 'supabaseClient' to prevent variable collision with window.supabase
-    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // Initialize Supabase client defensively to avoid undefined storage errors
+    let supabaseClient;
+    try {
+      if (window && window.supabase && typeof window.supabase.createClient === 'function') {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      } else if (typeof createClient === 'function') {
+        supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      } else {
+        throw new Error('Supabase client library not found. Ensure the @supabase/supabase-js script is loaded before this script.');
+      }
+    } catch (initErr) {
+      console.error('Supabase initialization error:', initErr);
+      alert('Supabase initialization failed. Check console for details.');
+    }
 
     let products = [];
     let sales = [];
