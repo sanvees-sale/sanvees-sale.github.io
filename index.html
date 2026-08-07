@@ -353,7 +353,6 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getDatabase, ref, push, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    // Direct Database Connection
     const firebaseConfig = {
       databaseURL: "https://sanveepos-default-rtdb.asia-southeast1.firebasedatabase.app"
     };
@@ -361,11 +360,14 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // App Global States
     let productsList = [];
     let salesList = {};
     let dailyCostsList = {};
     let selectedProductId = null;
+
+    // Helper functions to safely parse numerical values & support fallback field names
+    const getSellingPrice = (p) => Number(p?.sellingPrice ?? p?.selling ?? p?.price ?? p?.sellPrice ?? 0) || 0;
+    const getBuyingPrice = (p) => Number(p?.buyingPrice ?? p?.buying ?? p?.buyPrice ?? 0) || 0;
 
     // Set Default Dates to Today
     const todayStr = new Date().toISOString().split('T')[0];
@@ -385,12 +387,14 @@
           const prod = { id: key, ...data[key] };
           productsList.push(prod);
 
+          const sellPrice = getSellingPrice(prod);
+
           const card = document.createElement('div');
           card.className = `product-card-sm ${selectedProductId === key ? 'selected' : ''}`;
           card.onclick = (e) => selectProduct(key, e.currentTarget);
           card.innerHTML = `
-            <img src="${prod.image}" alt="product">
-            <div class="fw-bold text-primary mt-1">৳ ${prod.sellingPrice}</div>
+            <img src="${prod.image || prod.img || ''}" alt="product">
+            <div class="fw-bold text-primary mt-1">৳ ${sellPrice}</div>
           `;
           grid.appendChild(card);
         });
@@ -409,8 +413,8 @@
     document.getElementById('addProductForm').addEventListener('submit', (e) => {
       e.preventDefault();
       const fileInput = document.getElementById('productImage');
-      const buyingPrice = Number(document.getElementById('buyingPrice').value);
-      const sellingPrice = Number(document.getElementById('sellingPrice').value);
+      const buyingPrice = Number(document.getElementById('buyingPrice').value) || 0;
+      const sellingPrice = Number(document.getElementById('sellingPrice').value) || 0;
       const note = document.getElementById('productNote').value;
 
       if(fileInput.files.length > 0) {
@@ -441,7 +445,7 @@
     onValue(ref(db, 'dailyCosts'), (snapshot) => {
       dailyCostsList = snapshot.val() ? snapshot.val() : {};
       const currentDate = document.getElementById('saleDate').value;
-      document.getElementById('dailyCostInput').value = dailyCostsList[currentDate] || 0;
+      document.getElementById('dailyCostInput').value = Number(dailyCostsList[currentDate]) || 0;
       renderSales();
       renderMonthlyReport();
     });
@@ -452,7 +456,7 @@
         alert("Please select a product picture from the grid first!");
         return;
       }
-      const qty = Number(document.getElementById('saleQty').value);
+      const qty = Number(document.getElementById('saleQty').value) || 1;
       const date = document.getElementById('saleDate').value;
 
       const newSaleRef = push(ref(db, 'sales'));
@@ -466,7 +470,7 @@
     // Update Daily Boosting Cost
     window.updateDailyCost = function() {
       const date = document.getElementById('saleDate').value;
-      const cost = Number(document.getElementById('dailyCostInput').value);
+      const cost = Number(document.getElementById('dailyCostInput').value) || 0;
       set(ref(db, `dailyCosts/${date}`), cost);
     };
 
@@ -482,34 +486,39 @@
       let totalGrossProfit = 0;
       let count = 1;
 
-      Object.keys(salesList).forEach(key => {
-        const sale = salesList[key];
-        if(sale.date === currentDate) {
-          const prod = productsList.find(p => p.id === sale.productId) || {};
-          const profitPerItem = (prod.sellingPrice || 0) - (prod.buyingPrice || 0);
-          const totalProfit = profitPerItem * sale.quantity;
+      if (salesList && typeof salesList === 'object') {
+        Object.keys(salesList).forEach(key => {
+          const sale = salesList[key];
+          if(sale && sale.date === currentDate) {
+            const prod = productsList.find(p => p.id === sale.productId) || {};
+            const selling = getSellingPrice(prod);
+            const buying = getBuyingPrice(prod);
+            const profitPerItem = selling - buying;
+            const qty = Number(sale.quantity || sale.qty) || 0;
+            const totalProfit = profitPerItem * qty;
 
-          totalQty += sale.quantity;
-          totalGrossProfit += totalProfit;
+            totalQty += qty;
+            totalGrossProfit += totalProfit;
 
-          tbody.innerHTML += `
-            <tr>
-              <td>${count++}</td>
-              <td><img src="${prod.image || ''}" style="height: 60px; width: 60px; object-fit: cover; border-radius: 6px;"></td>
-              <td class="text-start">
-                <div><strong>Qty:</strong> ${sale.quantity} Pcs</div>
-                <div><strong>Selling:</strong> ৳${prod.sellingPrice || 0}</div>
-                <div><strong>Buying:</strong> ৳${prod.buyingPrice || 0}</div>
-              </td>
-              <td class="fw-bold text-success">৳ ${totalProfit}</td>
-              <td>${prod.note || 'N/A'}</td>
-              <td><button class="btn btn-outline-danger btn-sm" onclick="deleteSale('${key}')"><i class="fa-solid fa-trash"></i></button></td>
-            </tr>
-          `;
-        }
-      });
+            tbody.innerHTML += `
+              <tr>
+                <td>${count++}</td>
+                <td><img src="${prod.image || prod.img || ''}" style="height: 60px; width: 60px; object-fit: cover; border-radius: 6px;"></td>
+                <td class="text-start">
+                  <div><strong>Qty:</strong> ${qty} Pcs</div>
+                  <div><strong>Selling:</strong> ৳${selling}</div>
+                  <div><strong>Buying:</strong> ৳${buying}</div>
+                </td>
+                <td class="fw-bold text-success">৳ ${totalProfit}</td>
+                <td>${prod.note || 'N/A'}</td>
+                <td><button class="btn btn-outline-danger btn-sm" onclick="deleteSale('${key}')"><i class="fa-solid fa-trash"></i></button></td>
+              </tr>
+            `;
+          }
+        });
+      }
 
-      const boostingCost = Number(dailyCostsList[currentDate] || 0);
+      const boostingCost = Number(dailyCostsList[currentDate]) || 0;
       const netProfit = totalGrossProfit - boostingCost;
       const perUnitCost = totalQty > 0 ? (boostingCost / totalQty).toFixed(2) : 0;
 
@@ -532,11 +541,13 @@
       if(confirm("Are you sure you want to clear ALL sales records for this specific date?")) {
         const currentDate = document.getElementById('saleDate').value;
         
-        Object.keys(salesList).forEach(key => {
-          if(salesList[key].date === currentDate) {
-            remove(ref(db, `sales/${key}`));
-          }
-        });
+        if (salesList && typeof salesList === 'object') {
+          Object.keys(salesList).forEach(key => {
+            if(salesList[key] && salesList[key].date === currentDate) {
+              remove(ref(db, `sales/${key}`));
+            }
+          });
+        }
         
         set(ref(db, `dailyCosts/${currentDate}`), 0);
         document.getElementById('dailyCostInput').value = 0;
@@ -546,7 +557,7 @@
     // Date Switch Listener
     document.getElementById('saleDate').addEventListener('change', () => {
       const currentDate = document.getElementById('saleDate').value;
-      document.getElementById('dailyCostInput').value = dailyCostsList[currentDate] || 0;
+      document.getElementById('dailyCostInput').value = Number(dailyCostsList[currentDate]) || 0;
       renderSales();
     });
 
@@ -557,21 +568,29 @@
       let mGrossProfit = 0;
       let mCost = 0;
 
-      Object.keys(salesList).forEach(key => {
-        const sale = salesList[key];
-        if(sale.date && sale.date.startsWith(selectedMonth)) {
-          const prod = productsList.find(p => p.id === sale.productId) || {};
-          const profitPerItem = (prod.sellingPrice || 0) - (prod.buyingPrice || 0);
-          mQty += sale.quantity;
-          mGrossProfit += (profitPerItem * sale.quantity);
-        }
-      });
+      if (salesList && typeof salesList === 'object') {
+        Object.keys(salesList).forEach(key => {
+          const sale = salesList[key];
+          if(sale && sale.date && String(sale.date).startsWith(selectedMonth)) {
+            const prod = productsList.find(p => p.id === sale.productId) || {};
+            const selling = getSellingPrice(prod);
+            const buying = getBuyingPrice(prod);
+            const profitPerItem = selling - buying;
+            const qty = Number(sale.quantity || sale.qty) || 0;
 
-      Object.keys(dailyCostsList).forEach(date => {
-        if(date.startsWith(selectedMonth)) {
-          mCost += Number(dailyCostsList[date] || 0);
-        }
-      });
+            mQty += qty;
+            mGrossProfit += (profitPerItem * qty);
+          }
+        });
+      }
+
+      if (dailyCostsList && typeof dailyCostsList === 'object') {
+        Object.keys(dailyCostsList).forEach(date => {
+          if(date && String(date).startsWith(selectedMonth)) {
+            mCost += Number(dailyCostsList[date]) || 0;
+          }
+        });
+      }
 
       document.getElementById('mTotalQty').innerText = `${mQty} Pcs`;
       document.getElementById('mGrossProfit').innerText = `৳ ${mGrossProfit}`;
