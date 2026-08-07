@@ -42,7 +42,7 @@
           <input type="password" id="login-password" required placeholder="••••••••" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-amber-500 font-semibold">
         </div>
         <div id="login-error" class="hidden text-xs font-bold text-rose-600 text-center bg-rose-50 p-2 rounded-lg border border-rose-200">
-          ইউজারনেম বা পাসওয়ার্ড ভুল হয়েছে!
+          ইউজারনেম বা পাসওয়ার্ড ভুল হয়েছে!
         </div>
         <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-amber-400 font-extrabold py-3 rounded-xl text-sm transition shadow-lg">
           <i class="fa-solid fa-lock-open mr-1"></i> Secure Login
@@ -444,7 +444,7 @@
       });
 
       db.ref().update(updates).then(() => {
-        alert(`✅ ${date} তারিখের ডাটা সফলভাবে Monthly Report এ সেভ করা হয়েছে!`);
+        alert(`✅ ${date} তারিখের ডাটা সফলভাবে Monthly Report এ সেভ করা হয়েছে!`);
         renderMonthlyView();
       });
     }
@@ -455,7 +455,7 @@
         return alert('অনুগ্রহ করে প্রথমে "Specific Date Filter"-এ তারিখ নির্বাচন করুন যেটির ডাটা আপনি ০ (Zero) করতে চান!');
       }
 
-      if (!confirm(`${targetDate} তারিখের সেভ হওয়া মান্থলি রিপোর্ট ডাটা রিসেট করে ০ (Zero) করতে চান?`)) return;
+      if (!confirm(`${targetDate} তারিখের সেভ হওয়া মান্থলি রিপোর্ট ডাটা রিসেট করে ০ (Zero) করতে চান?`)) return;
 
       const daySales = sales.filter(s => s.date === targetDate);
       let updates = {};
@@ -465,7 +465,7 @@
       });
 
       db.ref().update(updates).then(() => {
-        alert(`✅ ${targetDate} তারিখের সেভ ডাটা সফলভাবে ০ (Zero) করা হয়েছে!`);
+        alert(`✅ ${targetDate} তারিখের সেভ ডাটা সফলভাবে ০ (Zero) করা হয়েছে!`);
         renderMonthlyView();
       });
     }
@@ -646,202 +646,222 @@
 
         return `
           <div onclick="selectProductCard(${p.id})" id="prod-card-${p.id}" class="prod-select-card relative cursor-pointer border rounded-lg p-1 flex flex-col items-center transition hover:border-amber-400 ${selectedClass}">
-            <button type="button" onclick="deleteProduct(event, ${p.id})" title="Delete Product" class="absolute top-1 right-1 bg-rose-500 hover:bg-rose-700 text-white rounded-full w-4 h-4 flex items-center justify-center text-[9px] shadow no-print z-10">
+            <button type="button" onclick="deleteProduct(event, ${p.id})" class="absolute top-1 right-1 bg-rose-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[9px] hover:bg-rose-700 transition shadow" title="Delete Product">
               <i class="fa-solid fa-xmark"></i>
             </button>
-
-            <img src="${p.image}" class="img-selector">
-            <span class="text-[10px] font-bold text-slate-800 mt-0.5">৳ ${p.selling}</span>
-            <span class="text-[9px] font-black bg-indigo-100 text-indigo-700 px-1 rounded border border-indigo-200">
-              T: ${todayQty}
-            </span>
+            <img src="${p.image}" class="img-selector object-cover rounded mb-1">
+            <span class="text-[10px] font-bold text-slate-700 truncate w-full text-center">৳${p.selling}</span>
+            ${todayQty > 0 ? `<span class="bg-emerald-600 text-white font-extrabold text-[9px] px-1.5 py-0.5 rounded-full mt-0.5">${todayQty} Pcs</span>` : ''}
           </div>
         `;
       }).join('');
     }
 
-    function renderDailyView() {
-      const date = document.getElementById('input-sale-date').value || todayStr;
-      document.getElementById('summary-header-date').textContent = `Date: ${date}`;
-
-      const todaysSales = sales.filter(s => s.date === date);
-      const totalQty = todaysSales.reduce((a, b) => a + b.qty, 0);
-      const grossProfit = todaysSales.reduce((a, b) => a + b.grossProfit, 0);
-      const costing = parseFloat(document.getElementById('input-daily-costing').value) || 0;
-      const netProfit = grossProfit - costing;
-
-      document.getElementById('summary-qty').textContent = totalQty;
-      document.getElementById('summary-gross-profit').textContent = `৳ ${grossProfit.toLocaleString()}`;
-      document.getElementById('summary-costing').textContent = `৳ ${costing.toLocaleString()}`;
-      document.getElementById('summary-per-product-cost').textContent = `৳ ${totalQty > 0 ? Math.round(costing / totalQty) : 0}`;
-      
-      const netSpan = document.getElementById('summary-total-profit');
-      netSpan.textContent = `৳ ${netProfit.toLocaleString()}`;
-      netSpan.className = netProfit >= 0 ? "font-extrabold text-xs text-emerald-700" : "font-extrabold text-xs text-rose-600";
-
-      const tbody = document.getElementById('tbody-daily-sales');
-      if(products.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400">No products available in catalog.</td></tr>`;
-        return;
+    function deleteSale(saleId) {
+      if(!confirm('আপনি কি এই সেলের রেকর্ডটি ডিলিট করতে চান?')) return;
+      const sale = sales.find(s => s.id === saleId);
+      if(sale) {
+        saveUndoSnapshot(sale.date);
       }
-
-      tbody.innerHTML = products.map((p, idx) => {
-        const saleForDate = sales.find(s => s.date === date && s.productId === p.id);
-        const currentQty = saleForDate ? saleForDate.qty : 0;
-        const currentGross = saleForDate ? saleForDate.grossProfit : 0;
-
-        return `
-          <tr class="hover:bg-slate-50 border-b border-slate-200">
-            <td class="p-2 text-center font-bold text-slate-500">${idx + 1}</td>
-            <td class="p-2"><img src="${p.image}" class="img-compact"></td>
-            <td class="p-2 text-xs">
-              <div class="flex items-center gap-2">
-                <span class="font-bold text-slate-700">Qty:</span>
-                <input type="number" min="0" value="${currentQty}" onchange="updateSaleQty(${p.id}, this.value)" class="w-14 border border-slate-300 rounded px-1 py-0.5 text-center font-extrabold text-indigo-700 bg-indigo-50/60 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none text-xs">
-                <span class="text-[11px] text-slate-500 font-semibold">Pcs</span>
-              </div>
-              <div class="flex items-center gap-3 text-[11px] text-slate-600 mt-1">
-                <span>Sell: <b class="text-slate-800">৳${p.selling}</b></span>
-                <span>Buy: <b>৳${p.buying}</b></span>
-              </div>
-            </td>
-            <td class="p-2 text-xs font-bold text-emerald-600">৳ ${currentGross.toLocaleString()}</td>
-            <td class="p-2 text-xs text-slate-600 truncate max-w-xs">${p.desc}</td>
-            <td class="p-2 text-center no-print">
-              <button type="button" onclick="deleteProduct(event, ${p.id})" title="Delete Product" class="bg-rose-100 hover:bg-rose-600 text-rose-600 hover:text-white rounded p-1.5 transition font-bold text-xs">
-                <i class="fa-solid fa-xmark"></i>
-              </button>
-            </td>
-          </tr>
-        `;
-      }).join('');
+      db.ref('sales/' + saleId).remove();
     }
 
-    function renderMonthlyView() {
-      const selectedMonth = document.getElementById('input-monthly-filter').value;
-      const selectedSpecificDate = document.getElementById('input-monthly-date-filter').value;
-      if(!selectedMonth) return;
+    function switchTab(tab) {
+      const dTab = document.getElementById('tab-daily');
+      const mTab = document.getElementById('tab-monthly');
+      const dBtn = document.getElementById('tab-daily-btn');
+      const mBtn = document.getElementById('tab-monthly-btn');
 
-      let monthlySales = sales.filter(s => s.date && s.date.startsWith(selectedMonth));
-      
-      if (selectedSpecificDate) {
-        monthlySales = monthlySales.filter(s => s.date === selectedSpecificDate);
-        document.getElementById('monthly-table-title').innerHTML = `<i class="fa-solid fa-calendar-day text-amber-400"></i> Sales Breakdown for ${selectedSpecificDate}`;
-        document.getElementById('input-monthly-cost-edit').value = dailyCosts[selectedSpecificDate] || 0;
+      if (tab === 'daily') {
+        dTab.classList.remove('hidden');
+        mTab.classList.add('hidden');
+        dBtn.className = 'flex-1 py-2.5 text-center border-b-2 border-amber-500 text-amber-400 bg-slate-900 font-bold flex justify-center items-center gap-2';
+        mBtn.className = 'flex-1 py-2.5 text-center border-b-2 border-transparent text-slate-400 hover:text-white flex justify-center items-center gap-2';
       } else {
-        document.getElementById('monthly-table-title').innerHTML = `<i class="fa-solid fa-calendar-days text-amber-400"></i> Monthly Sales & Item Breakdown Table (${selectedMonth})`;
-        document.getElementById('input-monthly-cost-edit').value = '';
-      }
-
-      const totalQty = monthlySales.reduce((a, b) => a + (b.monthlyQty || 0), 0);
-      const grossProfit = monthlySales.reduce((a, b) => a + (b.monthlyGrossProfit || 0), 0);
-
-      let totalCosting = 0;
-      if (selectedSpecificDate) {
-        totalCosting = dailyCosts[selectedSpecificDate] || 0;
-      } else {
-        Object.keys(dailyCosts).forEach(dateKey => {
-          if(dateKey.startsWith(selectedMonth)) {
-            totalCosting += dailyCosts[dateKey] || 0;
-          }
-        });
-      }
-
-      const netProfit = grossProfit - totalCosting;
-
-      document.getElementById('m-stat-qty').textContent = `${totalQty} Pcs`;
-      document.getElementById('m-stat-gross').textContent = `৳ ${grossProfit.toLocaleString()}`;
-      document.getElementById('m-stat-costing').textContent = `৳ ${totalCosting.toLocaleString()}`;
-      document.getElementById('m-stat-net').textContent = `৳ ${netProfit.toLocaleString()}`;
-
-      const tbody = document.getElementById('tbody-monthly-sales');
-      if(monthlySales.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400">No saved sales found for the selected filter.</td></tr>`;
-        return;
-      }
-
-      const sortedSales = [...monthlySales].sort((a, b) => b.date.localeCompare(a.date));
-
-      tbody.innerHTML = sortedSales.map((s, idx) => {
-        const mQty = s.monthlyQty !== undefined ? s.monthlyQty : 0;
-        const mGross = s.monthlyGrossProfit !== undefined ? s.monthlyGrossProfit : 0;
-
-        return `
-          <tr class="hover:bg-slate-50 border-b border-slate-200">
-            <td class="p-2 text-center font-bold text-slate-500">${idx + 1}</td>
-            <td class="p-2 font-bold text-slate-700 text-xs">${s.date}</td>
-            <td class="p-2"><img src="${s.image}" class="img-compact"></td>
-            <td class="p-2 text-xs">
-              <div>Qty: <b class="text-indigo-700 font-extrabold">${mQty} Pcs</b></div>
-              <div class="flex items-center gap-3 text-[11px] text-slate-500 mt-0.5">
-                <span>Sell: ৳${s.selling}</span>
-                <span>Buy: ৳${s.buying}</span>
-              </div>
-            </td>
-            <td class="p-2 text-xs font-bold text-emerald-600">৳ ${mGross.toLocaleString()}</td>
-            <td class="p-2 text-xs text-slate-600 truncate max-w-xs">${s.desc}</td>
-          </tr>
-        `;
-      }).join('');
-    }
-
-    // Daily Costing Change
-    document.getElementById('input-daily-costing').addEventListener('change', (e) => {
-      const date = document.getElementById('input-sale-date').value || todayStr;
-      db.ref('dailyCosts/' + date).set(parseFloat(e.target.value) || 0);
-    });
-
-    // Monthly Costing Edit Direct Change
-    document.getElementById('input-monthly-cost-edit').addEventListener('change', (e) => {
-      const selectedDate = document.getElementById('input-monthly-date-filter').value;
-      if (!selectedDate) {
-        alert('কোস্টিং চেঞ্জ করতে প্রথমে "Specific Date Filter" থেকে একটি নির্দিষ্ট তারিখ সিলেক্ট করুন!');
-        return;
-      }
-      const newCost = parseFloat(e.target.value) || 0;
-      db.ref('dailyCosts/' + selectedDate).set(newCost).then(() => {
+        mTab.classList.remove('hidden');
+        dTab.classList.add('hidden');
+        mBtn.className = 'flex-1 py-2.5 text-center border-b-2 border-amber-500 text-amber-400 bg-slate-900 font-bold flex justify-center items-center gap-2';
+        dBtn.className = 'flex-1 py-2.5 text-center border-b-2 border-transparent text-slate-400 hover:text-white flex justify-center items-center gap-2';
         renderMonthlyView();
-        renderDailyView();
-      });
-    });
+      }
+    }
 
     document.getElementById('input-sale-date').addEventListener('change', (e) => {
-      const selectedDate = e.target.value;
+      const selectedDate = e.target.value || todayStr;
       document.getElementById('input-daily-costing').value = dailyCosts[selectedDate] || 0;
-      renderDailyView();
       renderProductSelector();
-      if(selectedProdId) {
-        selectProductCard(selectedProdId);
-      }
+      renderDailyView();
     });
 
-    document.getElementById('input-monthly-filter').addEventListener('change', (e) => {
-      const month = e.target.value;
-      const dateFilter = document.getElementById('input-monthly-date-filter');
-      if (dateFilter.value && !dateFilter.value.startsWith(month)) {
-        dateFilter.value = '';
-      }
+    document.getElementById('input-daily-costing').addEventListener('input', (e) => {
+      const date = document.getElementById('input-sale-date').value || todayStr;
+      const val = parseFloat(e.target.value) || 0;
+      db.ref('dailyCosts/' + date).set(val);
+    });
+
+    document.getElementById('input-monthly-filter').addEventListener('change', () => {
       renderMonthlyView();
     });
 
     document.getElementById('input-monthly-date-filter').addEventListener('change', (e) => {
-      if (e.target.value) {
-        document.getElementById('input-monthly-filter').value = e.target.value.substring(0, 7);
+      const filterDate = e.target.value;
+      if (filterDate) {
+        document.getElementById('input-monthly-cost-edit').value = dailyCosts[filterDate] || 0;
       }
       renderMonthlyView();
     });
 
-    function switchTab(tab) {
-      document.getElementById('tab-daily').classList.toggle('hidden', tab !== 'daily');
-      document.getElementById('tab-monthly').classList.toggle('hidden', tab !== 'monthly');
-      
-      document.getElementById('tab-daily-btn').classList.toggle('text-amber-400', tab === 'daily');
-      document.getElementById('tab-daily-btn').classList.toggle('border-amber-500', tab === 'daily');
-      document.getElementById('tab-daily-btn').classList.toggle('bg-slate-900', tab === 'daily');
+    document.getElementById('input-monthly-cost-edit').addEventListener('input', (e) => {
+      const filterDate = document.getElementById('input-monthly-date-filter').value;
+      if (!filterDate) return alert('Please select a date in "Specific Date Filter" first!');
+      const val = parseFloat(e.target.value) || 0;
+      db.ref('dailyCosts/' + filterDate).set(val);
+    });
 
-      document.getElementById('tab-monthly-btn').classList.toggle('text-amber-400', tab === 'monthly');
-      document.getElementById('tab-monthly-btn').classList.toggle('border-amber-500', tab === 'monthly');
-      document.getElementById('tab-monthly-btn').classList.toggle('bg-slate-900', tab === 'monthly');
+    function renderDailyView() {
+      const date = document.getElementById('input-sale-date').value || todayStr;
+      document.getElementById('summary-header-date').innerText = `Date: ${date}`;
+
+      const todaysSales = sales.filter(s => s.date === date && s.qty > 0);
+
+      let totalQty = 0;
+      let totalGross = 0;
+
+      const tbody = document.getElementById('tbody-daily-sales');
+      
+      if(todaysSales.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400 italic">No sales recorded for ${date}</td></tr>`;
+      } else {
+        tbody.innerHTML = todaysSales.map((s, index) => {
+          totalQty += s.qty;
+          totalGross += s.grossProfit;
+
+          return `
+            <tr class="hover:bg-slate-50 border-b border-slate-200">
+              <td class="p-2 text-center font-bold text-slate-500">${index + 1}</td>
+              <td class="p-2">
+                <img src="${s.image}" class="img-compact shadow-sm">
+              </td>
+              <td class="p-2">
+                <div class="font-bold text-slate-900">Buy: ৳${s.buying} | Sell: ৳${s.selling}</div>
+                <div class="text-[11px] text-slate-500 mb-1">Unit Profit: ৳${s.selling - s.buying}</div>
+                <div class="flex items-center gap-1.5 no-print">
+                  <span class="text-[11px] font-semibold text-slate-600">Qty:</span>
+                  <input type="number" min="0" value="${s.qty}" onchange="updateSaleQty(${s.productId}, this.value)" class="w-16 border border-slate-300 rounded px-1.5 py-0.5 font-bold text-slate-900 text-xs focus:ring-2 focus:ring-amber-500 outline-none">
+                  <span class="text-[10px] text-slate-400">Pcs</span>
+                </div>
+                <div class="hidden print:block font-bold">Qty: ${s.qty} Pcs</div>
+              </td>
+              <td class="p-2">
+                <div class="font-extrabold text-emerald-700 text-sm">৳ ${s.grossProfit}</div>
+                <div class="text-[10px] text-slate-400">Gross Profit</div>
+              </td>
+              <td class="p-2 text-slate-600 text-xs">
+                ${s.desc || '-'}
+              </td>
+              <td class="p-2 text-center no-print">
+                <button type="button" onclick="deleteSale('${s.id}')" class="text-rose-600 hover:text-rose-800 p-1 rounded transition" title="Delete Sale">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      const costing = dailyCosts[date] || 0;
+      const perProdCost = totalQty > 0 ? (costing / totalQty) : 0;
+      const totalProfit = totalGross - costing;
+
+      document.getElementById('summary-qty').innerText = `${totalQty} Pcs`;
+      document.getElementById('summary-gross-profit').innerText = `৳ ${totalGross}`;
+      document.getElementById('summary-costing').innerText = `৳ ${costing}`;
+      document.getElementById('summary-per-product-cost').innerText = `৳ ${perProdCost.toFixed(2)}`;
+      document.getElementById('summary-total-profit').innerText = `৳ ${totalProfit}`;
+    }
+
+    function renderMonthlyView() {
+      const monthFilter = document.getElementById('input-monthly-filter').value;
+      const dateFilter = document.getElementById('input-monthly-date-filter').value;
+
+      let filteredSales = [];
+
+      if (dateFilter) {
+        filteredSales = sales.filter(s => s.date === dateFilter);
+        document.getElementById('monthly-table-title').innerHTML = `<i class="fa-solid fa-calendar-day text-amber-400"></i> Breakdown for ${dateFilter}`;
+      } else if (monthFilter) {
+        filteredSales = sales.filter(s => s.date && s.date.startsWith(monthFilter));
+        document.getElementById('monthly-table-title').innerHTML = `<i class="fa-solid fa-calendar-days text-amber-400"></i> Monthly Breakdown for ${monthFilter}`;
+      } else {
+        filteredSales = [...sales];
+        document.getElementById('monthly-table-title').innerHTML = `<i class="fa-solid fa-calendar-days text-amber-400"></i> All Sales Breakdown`;
+      }
+
+      const activeSales = filteredSales.filter(s => {
+        const mQty = s.monthlyQty !== undefined ? s.monthlyQty : s.qty;
+        return mQty > 0;
+      });
+
+      let totalQty = 0;
+      let totalGross = 0;
+
+      const tbody = document.getElementById('tbody-monthly-sales');
+
+      if (activeSales.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400 italic">No saved monthly data found for selected filter</td></tr>`;
+      } else {
+        tbody.innerHTML = activeSales.map((s, index) => {
+          const mQty = s.monthlyQty !== undefined ? s.monthlyQty : s.qty;
+          const mGross = s.monthlyGrossProfit !== undefined ? s.monthlyGrossProfit : s.grossProfit;
+
+          totalQty += mQty;
+          totalGross += mGross;
+
+          return `
+            <tr class="hover:bg-slate-50 border-b border-slate-200">
+              <td class="p-2 text-center font-bold text-slate-500">${index + 1}</td>
+              <td class="p-2 font-semibold text-slate-700">${s.date}</td>
+              <td class="p-2">
+                <img src="${s.image}" class="img-compact shadow-sm">
+              </td>
+              <td class="p-2">
+                <div class="font-bold text-slate-900">Buy: ৳${s.buying} | Sell: ৳${s.selling}</div>
+                <div class="text-[11px] text-slate-500">Qty: <span class="font-bold text-slate-800">${mQty} Pcs</span></div>
+              </td>
+              <td class="p-2">
+                <div class="font-extrabold text-indigo-700 text-sm">৳ ${mGross}</div>
+                <div class="text-[10px] text-slate-400">Gross Profit</div>
+              </td>
+              <td class="p-2 text-slate-600 text-xs">
+                ${s.desc || '-'}
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      let totalCosting = 0;
+
+      if (dateFilter) {
+        totalCosting = dailyCosts[dateFilter] || 0;
+      } else if (monthFilter) {
+        Object.keys(dailyCosts).forEach(d => {
+          if (d.startsWith(monthFilter)) {
+            totalCosting += (dailyCosts[d] || 0);
+          }
+        });
+      } else {
+        Object.values(dailyCosts).forEach(c => {
+          totalCosting += (c || 0);
+        });
+      }
+
+      const netProfit = totalGross - totalCosting;
+
+      document.getElementById('m-stat-qty').innerText = `${totalQty} Pcs`;
+      document.getElementById('m-stat-gross').innerText = `৳ ${totalGross}`;
+      document.getElementById('m-stat-costing').innerText = `৳ ${totalCosting}`;
+      document.getElementById('m-stat-net').innerText = `৳ ${netProfit}`;
     }
   </script>
 </body>
