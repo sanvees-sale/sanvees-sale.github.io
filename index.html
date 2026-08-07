@@ -146,7 +146,7 @@
       color: #fff;
     }
 
-    /* Floating / Action Buttons */
+    /* Action Buttons */
     .btn-action-save {
       background-color: #059669;
       color: white;
@@ -161,7 +161,7 @@
 </head>
 <body>
 
-  <!-- Header -->
+  <!-- Top Header -->
   <div class="top-header d-flex justify-content-between align-items-center">
     <div class="d-flex align-items-center gap-2">
       <div class="bg-warning text-dark fw-bold rounded px-2 py-1">S</div>
@@ -348,12 +348,12 @@
 
   </div>
 
-  <!-- Firebase Scripts (Modular API) -->
+  <!-- Firebase JavaScript Engine -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getDatabase, ref, push, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.app.js";
+    import { getDatabase, ref, push, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    // Firebase Config using your Database URL from the screenshot
+    // Direct Database Connection
     const firebaseConfig = {
       databaseURL: "https://sanveepos-default-rtdb.asia-southeast1.firebasedatabase.app"
     };
@@ -361,19 +361,19 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // Global State variables
+    // App Global States
     let productsList = [];
-    let salesList = [];
+    let salesList = {};
     let dailyCostsList = {};
     let selectedProductId = null;
 
-    // Set Default Date to Today
+    // Set Default Dates to Today
     const todayStr = new Date().toISOString().split('T')[0];
     document.getElementById('saleDate').value = todayStr;
     document.getElementById('displayDate').innerText = `Date: ${todayStr}`;
     document.getElementById('monthlyPicker').value = todayStr.substring(0, 7);
 
-    // 1. Listen for Products
+    // 1. Fetch Products
     onValue(ref(db, 'products'), (snapshot) => {
       const data = snapshot.val();
       productsList = [];
@@ -387,7 +387,7 @@
 
           const card = document.createElement('div');
           card.className = `product-card-sm ${selectedProductId === key ? 'selected' : ''}`;
-          card.onclick = () => selectProduct(key);
+          card.onclick = (e) => selectProduct(key, e.currentTarget);
           card.innerHTML = `
             <img src="${prod.image}" alt="product">
             <div class="fw-bold text-primary mt-1">৳ ${prod.sellingPrice}</div>
@@ -398,14 +398,14 @@
       renderSales();
     });
 
-    // Select Product Helper
-    window.selectProduct = function(id) {
+    // Product Selection Handler
+    window.selectProduct = function(id, el) {
       selectedProductId = id;
-      document.querySelectorAll('.product-card-sm').forEach(el => el.classList.remove('selected'));
-      event.currentTarget.classList.add('selected');
-    }
+      document.querySelectorAll('.product-card-sm').forEach(card => card.classList.remove('selected'));
+      if(el) el.classList.add('selected');
+    };
 
-    // Add Product to DB (Convert Base64)
+    // Save Product To Database
     document.getElementById('addProductForm').addEventListener('submit', (e) => {
       e.preventDefault();
       const fileInput = document.getElementById('productImage');
@@ -424,20 +424,20 @@
             note
           });
           document.getElementById('addProductForm').reset();
-          alert('Product Added Successfully!');
+          alert('Product Saved Successfully!');
         }
         reader.readAsDataURL(fileInput.files[0]);
       }
     });
 
-    // 2. Listen for Sales
+    // 2. Fetch Sales Records
     onValue(ref(db, 'sales'), (snapshot) => {
       salesList = snapshot.val() ? snapshot.val() : {};
       renderSales();
       renderMonthlyReport();
     });
 
-    // 3. Listen for Daily Costs
+    // 3. Fetch Daily Boosting Costs
     onValue(ref(db, 'dailyCosts'), (snapshot) => {
       dailyCostsList = snapshot.val() ? snapshot.val() : {};
       const currentDate = document.getElementById('saleDate').value;
@@ -446,10 +446,10 @@
       renderMonthlyReport();
     });
 
-    // Add Sale Record
+    // Add Sale Entry
     window.addSaleEntry = function() {
       if(!selectedProductId) {
-        alert("Please select a product picture first!");
+        alert("Please select a product picture from the grid first!");
         return;
       }
       const qty = Number(document.getElementById('saleQty').value);
@@ -463,14 +463,14 @@
       });
     };
 
-    // Update Daily Cost
+    // Update Daily Boosting Cost
     window.updateDailyCost = function() {
       const date = document.getElementById('saleDate').value;
       const cost = Number(document.getElementById('dailyCostInput').value);
       set(ref(db, `dailyCosts/${date}`), cost);
     };
 
-    // Render Daily Sales and Calculate Metrics
+    // Render Table & Summary Cards
     function renderSales() {
       const currentDate = document.getElementById('saleDate').value;
       document.getElementById('displayDate').innerText = `Date: ${currentDate}`;
@@ -520,26 +520,43 @@
       document.getElementById('metricNetProfit').innerText = `৳ ${netProfit}`;
     }
 
-    // Delete Sale Single Item
+    // Delete Single Sale Item
     window.deleteSale = function(key) {
-      remove(ref(db, `sales/${key}`));
+      if(confirm("Are you sure you want to delete this sale entry?")) {
+        remove(ref(db, `sales/${key}`));
+      }
     };
 
-    // Date Switch Event Listener
+    // Clear All Records For Today
+    window.clearDailyData = function() {
+      if(confirm("Are you sure you want to clear ALL sales records for this specific date?")) {
+        const currentDate = document.getElementById('saleDate').value;
+        
+        Object.keys(salesList).forEach(key => {
+          if(salesList[key].date === currentDate) {
+            remove(ref(db, `sales/${key}`));
+          }
+        });
+        
+        set(ref(db, `dailyCosts/${currentDate}`), 0);
+        document.getElementById('dailyCostInput').value = 0;
+      }
+    };
+
+    // Date Switch Listener
     document.getElementById('saleDate').addEventListener('change', () => {
       const currentDate = document.getElementById('saleDate').value;
       document.getElementById('dailyCostInput').value = dailyCostsList[currentDate] || 0;
       renderSales();
     });
 
-    // Render Monthly Report
+    // Render Monthly Summary
     function renderMonthlyReport() {
       const selectedMonth = document.getElementById('monthlyPicker').value; // YYYY-MM
       let mQty = 0;
       let mGrossProfit = 0;
       let mCost = 0;
 
-      // Sum Up Sales
       Object.keys(salesList).forEach(key => {
         const sale = salesList[key];
         if(sale.date && sale.date.startsWith(selectedMonth)) {
@@ -550,7 +567,6 @@
         }
       });
 
-      // Sum Up Daily Costs
       Object.keys(dailyCostsList).forEach(date => {
         if(date.startsWith(selectedMonth)) {
           mCost += Number(dailyCostsList[date] || 0);
