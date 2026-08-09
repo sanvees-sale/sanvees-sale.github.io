@@ -333,7 +333,6 @@
   </div>
 
   <script>
-    // Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyBvrbLXqMHsTG2N3eePFFO900luktM4W60",
       authDomain: "sanveepos.firebaseapp.com",
@@ -731,7 +730,7 @@
         return `
           <div onclick="selectProductCard(${p.id})" id="prod-card-${p.id}" class="prod-select-card relative cursor-pointer border rounded-xl p-1.5 flex flex-col items-center transition hover:border-amber-400 shadow-sm ${selectedClass}">
             <img src="${p.image}" class="img-selector object-cover rounded-lg">
-            <span class="text-[10px] font-black text-slate-800 mt-1">৳${p.selling}</span>
+            <span class="text-[10px] font-black text-slate-800 mt-1">৳${p.selling.toLocaleString('en-IN')}</span>
             ${todayQty > 0 ? `<span class="absolute top-1 right-1 bg-amber-500 text-slate-900 font-black text-[9px] px-1.5 py-0.5 rounded-full shadow">${todayQty}</span>` : ''}
           </div>
         `;
@@ -758,7 +757,7 @@
           totalGrossProfit += grossProfit;
 
           return `
-            <tr class="hover:bg-slate-50/80 transition border-b border-slate-100">
+            <tr class="hover:bg-slate-50/80 transition border-b border-slate-100" data-selling-price="${p.selling}">
               <td class="p-3 text-center font-bold text-slate-400">${idx + 1}</td>
               <td class="p-3"><img src="${p.image}" class="img-compact shadow-sm"></td>
               <td class="p-3">
@@ -768,11 +767,11 @@
                   <span class="text-xs font-bold text-slate-500">Pcs</span>
                 </div>
                 <div class="text-[11px] font-semibold text-slate-600">
-                  <span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold">Sell: ৳${p.selling}</span>
-                  <span class="ml-1.5 text-slate-500">Buy: ৳${p.buying}</span>
+                  <span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold">Sell: ৳${p.selling.toLocaleString('en-IN')}</span>
+                  <span class="ml-1.5 text-slate-500">Buy: ৳${p.buying.toLocaleString('en-IN')}</span>
                 </div>
               </td>
-              <td class="p-3 font-extrabold text-xs text-slate-800">৳ ${grossProfit}</td>
+              <td class="p-3 font-extrabold text-xs text-slate-800">৳ ${grossProfit.toLocaleString('en-IN')}</td>
               <td class="p-3 text-xs text-slate-600 leading-relaxed">${p.desc || ''}</td>
               <td class="p-3 text-center no-print">
                 <button onclick="deleteProduct(event, ${p.id})" class="text-rose-400 hover:text-rose-600 p-1.5 transition rounded-lg hover:bg-rose-50" title="Delete Product"><i class="fa-solid fa-trash-can"></i></button>
@@ -782,14 +781,14 @@
         }).join('');
 
         const costing = parseFloat(document.getElementById('input-daily-costing').value) || 0;
-        const perProdCost = totalQty > 0 ? (costing / totalQty).toFixed(2) : 0;
+        const perProdCost = totalQty > 0 ? (costing / totalQty) : 0;
         const totalProfit = totalGrossProfit - costing;
 
-        document.getElementById('summary-qty').innerText = `${totalQty} Pcs`;
-        document.getElementById('summary-gross-profit').innerText = `৳ ${totalGrossProfit}`;
-        document.getElementById('summary-costing').innerText = `৳ ${costing}`;
-        document.getElementById('summary-per-product-cost').innerText = `৳ ${perProdCost}`;
-        document.getElementById('summary-total-profit').innerText = `৳ ${totalProfit}`;
+        document.getElementById('summary-qty').innerText = `${totalQty.toLocaleString('en-IN')} Pcs`;
+        document.getElementById('summary-gross-profit').innerText = `৳ ${totalGrossProfit.toLocaleString('en-IN')}`;
+        document.getElementById('summary-costing').innerText = `৳ ${costing.toLocaleString('en-IN')}`;
+        document.getElementById('summary-per-product-cost').innerText = `৳ ${perProdCost.toFixed(2).toLocaleString('en-IN')}`;
+        document.getElementById('summary-total-profit').innerText = `৳ ${totalProfit.toLocaleString('en-IN')}`;
       }
 
       filterDailyTableByPrice();
@@ -815,10 +814,10 @@
               <td class="p-3 font-extrabold text-slate-700">${s.date}</td>
               <td class="p-3"><img src="${s.image}" class="img-compact shadow-sm"></td>
               <td class="p-3">
-                <div class="text-xs font-black text-slate-800">Qty: ${s.monthlyQty !== undefined ? s.monthlyQty : s.qty} Pcs</div>
-                <div class="text-[11px] text-slate-500 mt-0.5">Sell: ৳${s.selling} | Buy: ৳${s.buying}</div>
+                <div class="text-xs font-black text-slate-800">Qty: ${(s.monthlyQty !== undefined ? s.monthlyQty : s.qty).toLocaleString('en-IN')} Pcs</div>
+                <div class="text-[11px] text-slate-500 mt-0.5">Sell: ৳${s.selling.toLocaleString('en-IN')} | Buy: ৳${s.buying.toLocaleString('en-IN')}</div>
               </td>
-              <td class="p-3 font-black text-xs text-indigo-700">৳ ${s.monthlyGrossProfit !== undefined ? s.monthlyGrossProfit : s.grossProfit}</td>
+              <td class="p-3 font-black text-xs text-indigo-700">৳ ${(s.monthlyGrossProfit !== undefined ? s.monthlyGrossProfit : s.grossProfit).toLocaleString('en-IN')}</td>
               <td class="p-3 text-xs text-slate-600 leading-relaxed">${s.desc || ''}</td>
             </tr>
           `;
@@ -843,36 +842,32 @@
         });
       }
 
-      document.getElementById('m-stat-qty').innerText = `${totalMonthlyQty} Pcs`;
-      document.getElementById('m-stat-gross').innerText = `৳ ${totalMonthlyGross}`;
-      document.getElementById('m-stat-costing').innerText = `৳ ${totalMonthlyCosting}`;
-      document.getElementById('m-stat-net').innerText = `৳ ${totalMonthlyGross - totalMonthlyCosting}`;
+      document.getElementById('m-stat-qty').innerText = `${totalMonthlyQty.toLocaleString('en-IN')} Pcs`;
+      document.getElementById('m-stat-gross').innerText = `৳ ${totalMonthlyGross.toLocaleString('en-IN')}`;
+      document.getElementById('m-stat-costing').innerText = `৳ ${totalMonthlyCosting.toLocaleString('en-IN')}`;
+      document.getElementById('m-stat-net').innerText = `৳ ${(totalMonthlyGross - totalMonthlyCosting).toLocaleString('en-IN')}`;
     }
 
-    // NEW FUNCTION: RENDER GRAND TOTAL (IN TOTAL LIFETIME)
     function renderGrandTotalView() {
       let grandQty = 0;
       let grandGross = 0;
 
-      // Summing up all time committed/saved data from all logged sales
       sales.forEach(s => {
         grandQty += (s.monthlyQty !== undefined ? s.monthlyQty : s.qty);
         grandGross += (s.monthlyGrossProfit !== undefined ? s.monthlyGrossProfit : s.grossProfit);
       });
 
-      // Summing up absolute all time costing from daily boosting costs
       let grandCosting = 0;
       Object.values(dailyCosts).forEach(c => {
         grandCosting += parseFloat(c) || 0;
       });
 
-      document.getElementById('g-stat-qty').innerText = `${grandQty} Pcs`;
-      document.getElementById('g-stat-gross').innerText = `৳ ${grandGross}`;
-      document.getElementById('g-stat-costing').innerText = `৳ ${grandCosting}`;
-      document.getElementById('g-stat-net').innerText = `৳ ${grandGross - grandCosting}`;
+      document.getElementById('g-stat-qty').innerText = `${grandQty.toLocaleString('en-IN')} Pcs`;
+      document.getElementById('g-stat-gross').innerText = `৳ ${grandGross.toLocaleString('en-IN')}`;
+      document.getElementById('g-stat-costing').innerText = `৳ ${grandCosting.toLocaleString('en-IN')}`;
+      document.getElementById('g-stat-net').innerText = `৳ ${(grandGross - grandCosting).toLocaleString('en-IN')}`;
     }
 
-    // PRICE SEARCH FILTER LOGIC
     function filterDailyTableByPrice() {
       const searchValue = document.getElementById('input-price-search').value.trim();
       const tbody = document.getElementById('tbody-daily-sales');
@@ -880,13 +875,13 @@
 
       const rows = tbody.querySelectorAll('tr');
       rows.forEach(row => {
+        const sellingPrice = row.getAttribute('data-selling-price');
         if (!searchValue) {
           row.style.display = '';
           return;
         }
 
-        const rowText = row.innerText || row.textContent;
-        if (rowText.includes(`Sell: ৳${searchValue}`) || rowText.includes(`Sell:৳${searchValue}`) || rowText.includes(`৳${searchValue}`) || rowText.includes(searchValue)) {
+        if (sellingPrice === searchValue) {
           row.style.display = '';
         } else {
           row.style.display = 'none';
@@ -902,7 +897,6 @@
       }
     }
 
-    // Event listeners
     document.getElementById('input-sale-date').addEventListener('change', () => {
       const selectedDate = document.getElementById('input-sale-date').value;
       document.getElementById('input-daily-costing').value = dailyCosts[selectedDate] || 0;
