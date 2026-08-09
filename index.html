@@ -353,9 +353,10 @@
     let selectedProdId = null;
     let undoStack = [];
 
-    // Helper function for comma formatting (e.g., 12,500)
+    // Helper function for 3-digit standard comma formatting (e.g., 513,319)
     function fmt(val) {
-      return (parseFloat(val) || 0).toLocaleString('en-US');
+      const num = parseFloat(val) || 0;
+      return new Intl.NumberFormat('en-US', { useGrouping: true, maximumFractionDigits: 2 }).format(num);
     }
 
     // AUTH LOGIN SYSTEM
