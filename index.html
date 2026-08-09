@@ -353,6 +353,11 @@
     let selectedProdId = null;
     let undoStack = [];
 
+    // Helper function for comma formatting (e.g., 12,500)
+    function fmt(val) {
+      return (parseFloat(val) || 0).toLocaleString('en-US');
+    }
+
     // AUTH LOGIN SYSTEM
     document.getElementById('form-login').addEventListener('submit', (e) => {
       e.preventDefault();
@@ -578,7 +583,7 @@
       grid.innerHTML = products.map(p => `
         <div onclick="selectProductCard('${p.id}')" id="prod-card-${p.id}" class="prod-select-card cursor-pointer border-2 border-slate-200 bg-white rounded-lg p-1.5 text-center transition hover:border-amber-400">
           <img src="${p.file}" class="img-selector mb-1">
-          <div class="text-[10px] font-bold text-slate-700 truncate">৳ ${p.sell}</div>
+          <div class="text-[10px] font-bold text-slate-700 truncate">৳ ${fmt(p.sell)}</div>
         </div>
       `).join('');
     }
@@ -714,13 +719,13 @@
       const totalProfit = totalGross - cost;
       const perProductCost = totalQty > 0 ? (cost / totalQty) : 0;
 
-      document.getElementById('summary-qty').innerText = `${totalQty} Pcs`;
-      document.getElementById('summary-gross-profit').innerText = `৳ ${totalGross.toLocaleString()}`;
-      document.getElementById('summary-costing').innerText = `৳ ${cost.toLocaleString()}`;
-      document.getElementById('summary-per-product-cost').innerText = `৳ ${perProductCost.toFixed(2)}`;
+      document.getElementById('summary-qty').innerText = `${fmt(totalQty)} Pcs`;
+      document.getElementById('summary-gross-profit').innerText = `৳ ${fmt(totalGross)}`;
+      document.getElementById('summary-costing').innerText = `৳ ${fmt(cost)}`;
+      document.getElementById('summary-per-product-cost').innerText = `৳ ${perProductCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
       
       const tpEl = document.getElementById('summary-total-profit');
-      tpEl.innerText = `৳ ${totalProfit.toLocaleString()}`;
+      tpEl.innerText = `৳ ${fmt(totalProfit)}`;
       tpEl.className = totalProfit >= 0 ? "font-extrabold text-xs text-emerald-600" : "font-extrabold text-xs text-rose-600";
 
       const tbody = document.getElementById('tbody-daily-sales');
@@ -736,14 +741,14 @@
           <td class="p-3 text-center font-bold text-slate-500">${idx + 1}</td>
           <td class="p-3"><img src="${s.file}" class="img-compact"></td>
           <td class="p-3">
-            <div class="font-bold text-slate-900">Buy: ৳${s.buy} | Sell: ৳${s.sell}</div>
+            <div class="font-bold text-slate-900">Buy: ৳${fmt(s.buy)} | Sell: ৳${fmt(s.sell)}</div>
             <div class="mt-1 flex items-center gap-2">
               <span class="text-[11px] font-bold text-slate-600">Qty:</span>
               <input type="number" min="0" value="${s.qty}" onchange="updateSaleQty('${s.id}', this.value)" class="w-16 border border-slate-300 rounded px-2 py-1 text-xs font-black text-slate-900 outline-none focus:ring-2 focus:ring-amber-500">
             </div>
           </td>
           <td class="p-3 font-extrabold text-slate-900">
-            <div>Gross: ৳${s.grossProfit}</div>
+            <div>Gross: ৳${fmt(s.grossProfit)}</div>
           </td>
           <td class="p-3 text-slate-600">${s.desc || '-'}</td>
           <td class="p-3 text-center no-print">
@@ -830,12 +835,12 @@
 
       const mNet = mGross - mCosting;
 
-      document.getElementById('m-stat-qty').innerText = `${mQty} Pcs`;
-      document.getElementById('m-stat-gross').innerText = `৳ ${mGross.toLocaleString()}`;
-      document.getElementById('m-stat-costing').innerText = `৳ ${mCosting.toLocaleString()}`;
+      document.getElementById('m-stat-qty').innerText = `${fmt(mQty)} Pcs`;
+      document.getElementById('m-stat-gross').innerText = `৳ ${fmt(mGross)}`;
+      document.getElementById('m-stat-costing').innerText = `৳ ${fmt(mCosting)}`;
       
       const mNetEl = document.getElementById('m-stat-net');
-      mNetEl.innerText = `৳ ${mNet.toLocaleString()}`;
+      mNetEl.innerText = `৳ ${fmt(mNet)}`;
 
       const tbody = document.getElementById('tbody-monthly-sales');
       if (!tbody) return;
@@ -854,11 +859,11 @@
             <td class="p-3 font-extrabold text-slate-900">${s.date}</td>
             <td class="p-3"><img src="${s.file}" class="img-compact"></td>
             <td class="p-3">
-              <div class="font-bold text-slate-900">Buy: ৳${s.buy} | Sell: ৳${s.sell}</div>
-              <div class="text-xs text-slate-600 font-semibold mt-0.5">Saved Qty: <span class="font-black text-amber-600">${q}</span> Pcs</div>
+              <div class="font-bold text-slate-900">Buy: ৳${fmt(s.buy)} | Sell: ৳${fmt(s.sell)}</div>
+              <div class="text-xs text-slate-600 font-semibold mt-0.5">Saved Qty: <span class="font-black text-amber-600">${fmt(q)}</span> Pcs</div>
             </td>
             <td class="p-3 font-extrabold text-slate-900">
-              <div>Saved Gross: ৳${g}</div>
+              <div>Saved Gross: ৳${fmt(g)}</div>
             </td>
             <td class="p-3 text-slate-600">${s.desc || '-'}</td>
           </tr>
@@ -884,10 +889,10 @@
 
       const gNet = gGross - gCosting;
 
-      document.getElementById('g-stat-qty').innerText = `${gQty} Pcs`;
-      document.getElementById('g-stat-gross').innerText = `৳ ${gGross.toLocaleString()}`;
-      document.getElementById('g-stat-costing').innerText = `৳ ${gCosting.toLocaleString()}`;
-      document.getElementById('g-stat-net').innerText = `৳ ${gNet.toLocaleString()}`;
+      document.getElementById('g-stat-qty').innerText = `${fmt(gQty)} Pcs`;
+      document.getElementById('g-stat-gross').innerText = `৳ ${fmt(gGross)}`;
+      document.getElementById('g-stat-costing').innerText = `৳ ${fmt(gCosting)}`;
+      document.getElementById('g-stat-net').innerText = `৳ ${fmt(gNet)}`;
     }
   </script>
 </body>
