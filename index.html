@@ -731,8 +731,8 @@
         return `
           <div onclick="selectProductCard(${p.id})" id="prod-card-${p.id}" class="prod-select-card relative cursor-pointer border rounded-xl p-1.5 flex flex-col items-center transition hover:border-amber-400 shadow-sm ${selectedClass}">
             <img src="${p.image}" class="img-selector object-cover rounded-lg">
-            <span class="text-[10px] font-black text-slate-800 mt-1">৳${p.selling}</span>
-            ${todayQty > 0 ? `<span class="absolute top-1 right-1 bg-amber-500 text-slate-900 font-black text-[9px] px-1.5 py-0.5 rounded-full shadow">${todayQty}</span>` : ''}
+            <span class="text-[10px] font-black text-slate-800 mt-1">৳${p.selling.toLocaleString()}</span>
+            ${todayQty > 0 ? `<span class="absolute top-1 right-1 bg-amber-500 text-slate-900 font-black text-[9px] px-1.5 py-0.5 rounded-full shadow">${todayQty.toLocaleString()}</span>` : ''}
           </div>
         `;
       }).join('');
@@ -768,11 +768,11 @@
                   <span class="text-xs font-bold text-slate-500">Pcs</span>
                 </div>
                 <div class="text-[11px] font-semibold text-slate-600">
-                  <span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold">Sell: ৳${p.selling}</span>
-                  <span class="ml-1.5 text-slate-500">Buy: ৳${p.buying}</span>
+                  <span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold">Sell: ৳${p.selling.toLocaleString()}</span>
+                  <span class="ml-1.5 text-slate-500">Buy: ৳${p.buying.toLocaleString()}</span>
                 </div>
               </td>
-              <td class="p-3 font-extrabold text-xs text-slate-800">৳ ${grossProfit}</td>
+              <td class="p-3 font-extrabold text-xs text-slate-800">৳ ${grossProfit.toLocaleString()}</td>
               <td class="p-3 text-xs text-slate-600 leading-relaxed">${p.desc || ''}</td>
               <td class="p-3 text-center no-print">
                 <button onclick="deleteProduct(event, ${p.id})" class="text-rose-400 hover:text-rose-600 p-1.5 transition rounded-lg hover:bg-rose-50" title="Delete Product"><i class="fa-solid fa-trash-can"></i></button>
@@ -785,11 +785,11 @@
         const perProdCost = totalQty > 0 ? (costing / totalQty).toFixed(2) : 0;
         const totalProfit = totalGrossProfit - costing;
 
-        document.getElementById('summary-qty').innerText = `${totalQty} Pcs`;
-        document.getElementById('summary-gross-profit').innerText = `৳ ${totalGrossProfit}`;
-        document.getElementById('summary-costing').innerText = `৳ ${costing}`;
-        document.getElementById('summary-per-product-cost').innerText = `৳ ${perProdCost}`;
-        document.getElementById('summary-total-profit').innerText = `৳ ${totalProfit}`;
+        document.getElementById('summary-qty').innerText = `${totalQty.toLocaleString()} Pcs`;
+        document.getElementById('summary-gross-profit').innerText = `৳ ${totalGrossProfit.toLocaleString()}`;
+        document.getElementById('summary-costing').innerText = `৳ ${costing.toLocaleString()}`;
+        document.getElementById('summary-per-product-cost').innerText = `৳ ${parseFloat(perProdCost).toLocaleString()}`;
+        document.getElementById('summary-total-profit').innerText = `৳ ${totalProfit.toLocaleString()}`;
       }
 
       filterDailyTableByPrice();
@@ -809,16 +809,18 @@
         tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400 text-xs">No monthly records found for selected filter.</td></tr>`;
       } else {
         tbody.innerHTML = filteredSales.map((s, idx) => {
+          const itemQty = s.monthlyQty !== undefined ? s.monthlyQty : s.qty;
+          const itemGross = s.monthlyGrossProfit !== undefined ? s.monthlyGrossProfit : s.grossProfit;
           return `
             <tr class="hover:bg-slate-50/80 transition border-b border-slate-100">
               <td class="p-3 text-center font-bold text-slate-400">${idx + 1}</td>
               <td class="p-3 font-extrabold text-slate-700">${s.date}</td>
               <td class="p-3"><img src="${s.image}" class="img-compact shadow-sm"></td>
               <td class="p-3">
-                <div class="text-xs font-black text-slate-800">Qty: ${s.monthlyQty !== undefined ? s.monthlyQty : s.qty} Pcs</div>
-                <div class="text-[11px] text-slate-500 mt-0.5">Sell: ৳${s.selling} | Buy: ৳${s.buying}</div>
+                <div class="text-xs font-black text-slate-800">Qty: ${itemQty.toLocaleString()} Pcs</div>
+                <div class="text-[11px] text-slate-500 mt-0.5">Sell: ৳${s.selling.toLocaleString()} | Buy: ৳${s.buying.toLocaleString()}</div>
               </td>
-              <td class="p-3 font-black text-xs text-indigo-700">৳ ${s.monthlyGrossProfit !== undefined ? s.monthlyGrossProfit : s.grossProfit}</td>
+              <td class="p-3 font-black text-xs text-indigo-700">৳ ${itemGross.toLocaleString()}</td>
               <td class="p-3 text-xs text-slate-600 leading-relaxed">${s.desc || ''}</td>
             </tr>
           `;
@@ -843,33 +845,31 @@
         });
       }
 
-      document.getElementById('m-stat-qty').innerText = `${totalMonthlyQty} Pcs`;
-      document.getElementById('m-stat-gross').innerText = `৳ ${totalMonthlyGross}`;
-      document.getElementById('m-stat-costing').innerText = `৳ ${totalMonthlyCosting}`;
-      document.getElementById('m-stat-net').innerText = `৳ ${totalMonthlyGross - totalMonthlyCosting}`;
+      document.getElementById('m-stat-qty').innerText = `${totalMonthlyQty.toLocaleString()} Pcs`;
+      document.getElementById('m-stat-gross').innerText = `৳ ${totalMonthlyGross.toLocaleString()}`;
+      document.getElementById('m-stat-costing').innerText = `৳ ${totalMonthlyCosting.toLocaleString()}`;
+      document.getElementById('m-stat-net').innerText = `৳ ${(totalMonthlyGross - totalMonthlyCosting).toLocaleString()}`;
     }
 
-    // NEW FUNCTION: RENDER GRAND TOTAL (IN TOTAL LIFETIME)
+    // RENDER GRAND TOTAL (IN TOTAL LIFETIME) WITH COMMA FORMATTING
     function renderGrandTotalView() {
       let grandQty = 0;
       let grandGross = 0;
 
-      // Summing up all time committed/saved data from all logged sales
       sales.forEach(s => {
         grandQty += (s.monthlyQty !== undefined ? s.monthlyQty : s.qty);
         grandGross += (s.monthlyGrossProfit !== undefined ? s.monthlyGrossProfit : s.grossProfit);
       });
 
-      // Summing up absolute all time costing from daily boosting costs
       let grandCosting = 0;
       Object.values(dailyCosts).forEach(c => {
         grandCosting += parseFloat(c) || 0;
       });
 
-      document.getElementById('g-stat-qty').innerText = `${grandQty} Pcs`;
-      document.getElementById('g-stat-gross').innerText = `৳ ${grandGross}`;
-      document.getElementById('g-stat-costing').innerText = `৳ ${grandCosting}`;
-      document.getElementById('g-stat-net').innerText = `৳ ${grandGross - grandCosting}`;
+      document.getElementById('g-stat-qty').innerText = `${grandQty.toLocaleString()} Pcs`;
+      document.getElementById('g-stat-gross').innerText = `৳ ${grandGross.toLocaleString()}`;
+      document.getElementById('g-stat-costing').innerText = `৳ ${grandCosting.toLocaleString()}`;
+      document.getElementById('g-stat-net').innerText = `৳ ${(grandGross - grandCosting).toLocaleString()}`;
     }
 
     // PRICE SEARCH FILTER LOGIC
@@ -936,3 +936,4 @@
   </script>
 </body>
 </html>
+```[cite: 1]
