@@ -733,13 +733,22 @@
       const date = document.getElementById('input-sale-date').value || todayStr;
       document.getElementById('summary-header-date').innerText = `Date: ${date}`;
 
-      const daySales = sales.filter(s => s.date === date);
+      let daySales = sales.filter(s => s.date === date);
       const cost = parseFloat(dailyCosts[date]) || 0;
+
+      // STRICT ARRAY FILTERING: Only match Selling Price (`s.sell`)
+      const searchVal = document.getElementById('input-price-search').value.trim();
+      if (searchVal) {
+        daySales = daySales.filter(s => String(s.sell).includes(searchVal));
+      }
 
       let totalQty = 0;
       let totalGross = 0;
 
-      daySales.forEach(s => {
+      // Note: calculations should ideally be based on all day sales or filtered? 
+      // Usually summary remains of full day sales or filtered? Let's compute totals from full day sales for accurate daily summary, but filter daySales array for the table render.
+      const allDaySales = sales.filter(s => s.date === date);
+      allDaySales.forEach(s => {
         totalQty += s.qty;
         totalGross += s.grossProfit;
       });
@@ -760,16 +769,16 @@
       if (!tbody) return;
 
       if (daySales.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400 font-bold">আজকের তারিখে কোনো সেল এন্ট্রি নেই।</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400 font-bold">কোনো সেলিং প্রাইস ম্যাচ করে এমন সেল এন্ট্রি নেই।</td></tr>`;
         return;
       }
 
       tbody.innerHTML = daySales.map((s, idx) => `
-        <tr class="hover:bg-slate-50/80 transition" data-sell="${s.sell}">
+        <tr class="hover:bg-slate-50/80 transition">
           <td class="p-3 text-center font-bold text-slate-500">${idx + 1}</td>
           <td class="p-3"><img src="${s.file}" class="img-compact"></td>
           <td class="p-3">
-            <div class="font-bold text-slate-900">Buy: ৳${fmt(s.buy)} | Sell: ৳${fmt(s.sell)}</div>
+            <div class="font-bold text-slate-900">Buy: ৳${fmt(s.buy)} | Sell: <span class="text-amber-600 font-black">৳${fmt(s.sell)}</span></div>
             <div class="mt-1 flex items-center gap-2">
               <span class="text-[11px] font-bold text-slate-600">Qty:</span>
               <input type="number" min="0" value="${s.qty}" onchange="updateSaleQty('${s.id}', this.value)" class="w-16 border border-slate-300 rounded px-2 py-1 text-xs font-black text-slate-900 outline-none focus:ring-2 focus:ring-amber-500">
@@ -784,9 +793,6 @@
           </td>
         </tr>
       `).join('');
-
-      // Re-apply filter if user already typed something in the search box
-      filterDailyTableBySellPrice();
     }
 
     function updateSaleQty(saleId, newQtyVal) {
@@ -814,28 +820,14 @@
       db.ref('sales/' + saleId).remove().then(() => renderDailyView());
     }
 
-    // UPDATED FUNCTION: Filter strictly by Selling Price (`data-sell`)
+    // Trigger re-render to strictly filter by Selling Price
     function filterDailyTableBySellPrice() {
-      const searchVal = document.getElementById('input-price-search').value.trim();
-      const rows = document.querySelectorAll('#tbody-daily-sales tr');
-      
-      rows.forEach(row => {
-        if (!searchVal) {
-          row.style.display = '';
-          return;
-        }
-        const sellPrice = row.getAttribute('data-sell');
-        if (sellPrice && sellPrice.toString().includes(searchVal)) {
-          row.style.display = '';
-        } else {
-          row.style.display = 'none';
-        }
-      });
+      renderDailyView();
     }
 
     function clearPriceSearch() {
       document.getElementById('input-price-search').value = '';
-      filterDailyTableBySellPrice();
+      renderDailyView();
     }
 
     function renderMonthlyView() {
