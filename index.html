@@ -561,327 +561,229 @@
 
     function clearTodaySale() {
       const date = document.getElementById('input-sale-date').value || todayStr;
-      const todaysSales = sales.filter(s => s.date === date);
-      if (todaysSales.length === 0) return alert('আজকের কোনো সেলের ডাটা নেই!');
+      if (!confirm(`${date} তারিখের সব সেল এন্ট্রি মুছে ফেলতে চান?`)) return;
+      saveUndoSnapshot(date);
+      let updates = {};
+      sales.forEach(s => {
+        if (s.date === date) {
+          updates['sales/' + s.id] = null;
+        }
+      });
+      db.ref().update(updates);
+    }
 
-      if (confirm('আজকের ডেলি সেলের হিসাব 0 করতে চান?')) {
-        saveUndoSnapshot(date);
-        todaysSales.forEach(s => {
-          db.ref('sales/' + s.id).update({
-            qty: 0,
-            grossProfit: 0
-          });
-        });
+    function renderProductSelector() {
+      const grid = document.getElementById('product-grid-selector');
+      if (!grid) return;
+      grid.innerHTML = products.map(p => `
+        <div onclick="selectProductCard('${p.id}')" id="prod-card-${p.id}" class="prod-select-card cursor-pointer border-2 border-slate-200 bg-white rounded-lg p-1.5 text-center transition hover:border-amber-400">
+          <img src="${p.file}" class="img-selector mb-1">
+          <div class="text-[10px] font-bold text-slate-700 truncate">৳ ${p.sell}</div>
+        </div>
+      `).join('');
+    }
+
+    function selectProductCard(id) {
+      selectedProdId = id;
+      document.getElementById('selected-prod-id').value = id;
+      document.querySelectorAll('.prod-select-card').forEach(c => {
+        c.classList.remove('border-amber-500', 'bg-amber-50', 'ring-2', 'ring-amber-400');
+        c.classList.add('border-slate-200', 'bg-white');
+      });
+      const card = document.getElementById(`prod-card-${id}`);
+      if (card) {
+        card.classList.remove('border-slate-200', 'bg-white');
+        card.classList.add('border-amber-500', 'bg-amber-50', 'ring-2', 'ring-amber-400');
+      }
+      const btnSubmit = document.getElementById('btn-sale-submit');
+      if (btnSubmit) {
+        btnSubmit.innerHTML = `<i class="fa-solid fa-check"></i> Update Sale Qty`;
       }
     }
 
     document.getElementById('form-add-product').addEventListener('submit', (e) => {
       e.preventDefault();
-      const file = document.getElementById('input-prod-file').files[0];
-      if(!file) return alert('Select image');
+      const fileInput = document.getElementById('input-prod-file');
+      const buy = parseFloat(document.getElementById('input-prod-buy').value) || 0;
+      const sell = parseFloat(document.getElementById('input-prod-sell').value) || 0;
+      const desc = document.getElementById('input-prod-desc').value.trim();
+
+      const file = fileInput.files[0];
+      if (!file) return alert('অনুগ্রহ করে একটি প্রোডাক্টের ছবি সিলেক্ট করুন!');
 
       const reader = new FileReader();
-      reader.onload = function(evt) {
-        const id = Date.now();
-        const buy = parseFloat(document.getElementById('input-prod-buy').value) || 0;
-        const sell = parseFloat(document.getElementById('input-prod-sell').value) || 0;
-        
-        const newProd = {
-          id: id,
-          image: evt.target.result,
-          buying: buy,
-          selling: sell,
-          grossProfitUnit: sell - buy,
-          desc: document.getElementById('input-prod-desc').value || 'Collection'
-        };
-
-        db.ref('products/' + id).set(newProd);
-        e.target.reset();
+      reader.onload = function(event) {
+        const base64Img = event.target.result;
+        const id = 'prod_' + Date.now();
+        const newProd = { id, file: base64Img, buy, sell, desc };
+        db.ref('products/' + id).set(newProd).then(() => {
+          document.getElementById('form-add-product').reset();
+          alert('✅ প্রোডাক্ট সফলভাবে ক্লাউডে সেভ হয়েছে!');
+        });
       };
       reader.readAsDataURL(file);
     });
 
     document.getElementById('form-sale-entry').addEventListener('submit', (e) => {
       e.preventDefault();
-      const qty = parseInt(document.getElementById('input-sale-qty').value);
-      if(isNaN(qty) || qty < 0) return alert('Please enter a valid quantity');
+      const prodId = document.getElementById('selected-prod-id').value;
+      const qty = parseInt(document.getElementById('input-sale-qty').value) || 0;
       const date = document.getElementById('input-sale-date').value || todayStr;
 
-      if (!selectedProdId) {
-        return alert('Please select a product picture first.');
-      }
+      if (!prodId) return alert('অনুগ্রহ করে ওপরের গ্রিড থেকে একটি প্রোডাক্ট ছবি সিলেক্ট করুন!');
+      if (qty < 0) return alert('পরিমাণ (Quantity) সঠিক দিন!');
 
-      const prod = products.find(p => p.id === selectedProdId);
-      const saleId = `${date}_${prod.id}`;
-      const existingSale = sales.find(s => s.id === saleId);
+      const prod = products.find(p => p.id === prodId);
+      if (!prod) return alert('প্রোডাক্টটি পাওয়া যায়নি!');
 
       saveUndoSnapshot(date);
 
-      const gross = (prod.selling - prod.buying) * qty;
-      const prevMonthlyQty = existingSale ? (existingSale.monthlyQty !== undefined ? existingSale.monthlyQty : 0) : 0;
-      const prevMonthlyGross = existingSale ? (existingSale.monthlyGrossProfit !== undefined ? existingSale.monthlyGrossProfit : 0) : 0;
+      const grossProfit = (prod.sell - prod.buy) * qty;
+      const saleId = `${date}_${prodId}`;
+
+      const existingSale = sales.find(s => s.id === saleId);
+      const monthlyQty = existingSale ? (existingSale.monthlyQty || 0) : 0;
+      const monthlyGrossProfit = existingSale ? (existingSale.monthlyGrossProfit || 0) : 0;
 
       const saleData = {
         id: saleId,
-        productId: prod.id,
-        image: prod.image,
-        buying: prod.buying,
-        selling: prod.selling,
-        desc: prod.desc,
+        prodId: prodId,
+        date: date,
         qty: qty,
-        grossProfit: gross,
-        monthlyQty: prevMonthlyQty,
-        monthlyGrossProfit: prevMonthlyGross,
-        date: date
+        buy: prod.buy,
+        sell: prod.sell,
+        desc: prod.desc || '',
+        file: prod.file,
+        grossProfit: grossProfit,
+        monthlyQty: monthlyQty,
+        monthlyGrossProfit: monthlyGrossProfit
       };
 
-      db.ref('sales/' + saleId).set(saleData);
+      db.ref('sales/' + saleId).set(saleData).then(() => {
+        clearProductSelection();
+        renderDailyView();
+      });
     });
 
-    function updateSaleQty(prodId, newQtyStr) {
-      const qty = parseInt(newQtyStr);
-      if (isNaN(qty) || qty < 0) return;
+    document.getElementById('input-sale-date').addEventListener('change', (e) => {
+      const d = e.target.value;
+      document.getElementById('input-daily-costing').value = dailyCosts[d] || 0;
+      renderDailyView();
+    });
 
-      const date = document.getElementById('input-sale-date').value || todayStr;
-      const prod = products.find(p => p.id === prodId);
-      if(!prod) return;
+    document.getElementById('input-daily-costing').addEventListener('input', (e) => {
+      const d = document.getElementById('input-sale-date').value || todayStr;
+      const val = parseFloat(e.target.value) || 0;
+      db.ref('dailyCosts/' + d).set(val);
+    });
 
-      const saleId = `${date}_${prod.id}`;
-      const existingSale = sales.find(s => s.id === saleId);
+    document.getElementById('input-monthly-filter').addEventListener('input', () => {
+      renderMonthlyView();
+    });
 
-      saveUndoSnapshot(date);
-
-      const gross = (prod.selling - prod.buying) * qty;
-      const prevMonthlyQty = existingSale ? (existingSale.monthlyQty !== undefined ? existingSale.monthlyQty : 0) : 0;
-      const prevMonthlyGross = existingSale ? (existingSale.monthlyGrossProfit !== undefined ? existingSale.monthlyGrossProfit : 0) : 0;
-
-      const saleData = {
-        id: saleId,
-        productId: prod.id,
-        image: prod.image,
-        buying: prod.buying,
-        selling: prod.selling,
-        desc: prod.desc,
-        qty: qty,
-        grossProfit: gross,
-        monthlyQty: prevMonthlyQty,
-        monthlyGrossProfit: prevMonthlyGross,
-        date: date
-      };
-
-      db.ref('sales/' + saleId).set(saleData);
-    }
-
-    function selectProductCard(id) {
-      selectedProdId = id;
-      document.getElementById('selected-prod-id').value = id;
-      
-      document.querySelectorAll('.prod-select-card').forEach(c => {
-        c.classList.remove('border-amber-500', 'bg-amber-50', 'ring-2', 'ring-amber-400');
-        c.classList.add('border-slate-200', 'bg-white');
-      });
-      
-      const card = document.getElementById(`prod-card-${id}`);
-      if(card) {
-        card.classList.remove('border-slate-200', 'bg-white');
-        card.classList.add('border-amber-500', 'bg-amber-50', 'ring-2', 'ring-amber-400');
+    document.getElementById('input-monthly-date-filter').addEventListener('change', (e) => {
+      const d = e.target.value;
+      if (d) {
+        document.getElementById('input-monthly-cost-edit').value = dailyCosts[d] || 0;
       }
+      renderMonthlyView();
+    });
 
-      const date = document.getElementById('input-sale-date').value || todayStr;
-      const existingSale = sales.find(s => s.date === date && s.productId === id);
-      const qtyInput = document.getElementById('input-sale-qty');
-      const btnSubmit = document.getElementById('btn-sale-submit');
-
-      if(existingSale) {
-        qtyInput.value = existingSale.qty;
-        btnSubmit.innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Update Sale Qty (${existingSale.qty} Pcs)`;
-      } else {
-        qtyInput.value = 1;
-        btnSubmit.innerHTML = `<i class="fa-solid fa-plus"></i> Add / Update Sale Entry`;
-      }
-    }
-
-    function deleteProduct(e, id) {
-      e.stopPropagation();
-      if(!confirm('এই প্রডাক্টটি ক্যাটালগ থেকে সম্পূর্ণ ডিলিট করে দিতে চান?')) return;
-      db.ref('products/' + id).remove();
-      if(selectedProdId === id) {
-        clearProductSelection();
-      }
-    }
-
-    function renderProductSelector() {
-      const grid = document.getElementById('product-grid-selector');
-      const date = document.getElementById('input-sale-date').value || todayStr;
-
-      if(products.length === 0) {
-        grid.innerHTML = `<p class="col-span-full text-[11px] text-slate-400 text-center py-4">No products uploaded yet.</p>`;
-        return;
-      }
-
-      grid.innerHTML = products.map(p => {
-        const todayQty = sales
-          .filter(s => s.date === date && s.productId === p.id)
-          .reduce((sum, item) => sum + item.qty, 0);
-
-        const isSelected = selectedProdId === p.id;
-        const selectedClass = isSelected ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-400' : 'border-slate-200 bg-white';
-
-        return `
-          <div onclick="selectProductCard(${p.id})" id="prod-card-${p.id}" class="prod-select-card relative cursor-pointer border rounded-xl p-1.5 flex flex-col items-center transition hover:border-amber-400 shadow-sm ${selectedClass}">
-            <img src="${p.image}" class="img-selector object-cover rounded-lg">
-            <span class="text-[10px] font-black text-slate-800 mt-1">৳${p.selling.toLocaleString('en-IN')}</span>
-            ${todayQty > 0 ? `<span class="absolute top-1 right-1 bg-amber-500 text-slate-900 font-black text-[9px] px-1.5 py-0.5 rounded-full shadow">${todayQty}</span>` : ''}
-          </div>
-        `;
-      }).join('');
-    }
+    document.getElementById('input-monthly-cost-edit').addEventListener('input', (e) => {
+      const d = document.getElementById('input-monthly-date-filter').value;
+      if (!d) return alert('প্রথমে নির্দিষ্ট তারিখ (Specific Date Filter) সিলেক্ট করুন!');
+      const val = parseFloat(e.target.value) || 0;
+      db.ref('dailyCosts/' + d).set(val);
+    });
 
     function renderDailyView() {
       const date = document.getElementById('input-sale-date').value || todayStr;
       document.getElementById('summary-header-date').innerText = `Date: ${date}`;
 
-      const tbody = document.getElementById('tbody-daily-sales');
-      if (products.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400 text-xs">No products added yet.</td></tr>`;
-      } else {
-        let totalQty = 0;
-        let totalGrossProfit = 0;
+      const daySales = sales.filter(s => s.date === date);
+      const cost = parseFloat(dailyCosts[date]) || 0;
 
-        tbody.innerHTML = products.map((p, idx) => {
-          const s = sales.find(item => item.date === date && item.productId === p.id);
-          const qty = s ? s.qty : 0;
-          const grossProfit = s ? s.grossProfit : 0;
+      let totalQty = 0;
+      let totalGross = 0;
 
-          totalQty += qty;
-          totalGrossProfit += grossProfit;
-
-          return `
-            <tr class="hover:bg-slate-50/80 transition border-b border-slate-100" data-selling-price="${p.selling}">
-              <td class="p-3 text-center font-bold text-slate-400">${idx + 1}</td>
-              <td class="p-3"><img src="${p.image}" class="img-compact shadow-sm"></td>
-              <td class="p-3">
-                <div class="flex items-center gap-2 mb-1.5">
-                  <span class="text-xs font-bold text-slate-700">Qty:</span>
-                  <input type="number" min="0" value="${qty}" onchange="updateSaleQty(${p.id}, this.value)" class="w-16 border border-slate-300 rounded-lg p-1 text-xs font-black text-slate-900 bg-amber-50 text-center outline-none focus:ring-2 focus:ring-amber-500">
-                  <span class="text-xs font-bold text-slate-500">Pcs</span>
-                </div>
-                <div class="text-[11px] font-semibold text-slate-600">
-                  <span class="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold">Sell: ৳${p.selling.toLocaleString('en-IN')}</span>
-                  <span class="ml-1.5 text-slate-500">Buy: ৳${p.buying.toLocaleString('en-IN')}</span>
-                </div>
-              </td>
-              <td class="p-3 font-extrabold text-xs text-slate-800">৳ ${grossProfit.toLocaleString('en-IN')}</td>
-              <td class="p-3 text-xs text-slate-600 leading-relaxed">${p.desc || ''}</td>
-              <td class="p-3 text-center no-print">
-                <button onclick="deleteProduct(event, ${p.id})" class="text-rose-400 hover:text-rose-600 p-1.5 transition rounded-lg hover:bg-rose-50" title="Delete Product"><i class="fa-solid fa-trash-can"></i></button>
-              </td>
-            </tr>
-          `;
-        }).join('');
-
-        const costing = parseFloat(document.getElementById('input-daily-costing').value) || 0;
-        const perProdCost = totalQty > 0 ? (costing / totalQty) : 0;
-        const totalProfit = totalGrossProfit - costing;
-
-        document.getElementById('summary-qty').innerText = `${totalQty.toLocaleString('en-IN')} Pcs`;
-        document.getElementById('summary-gross-profit').innerText = `৳ ${totalGrossProfit.toLocaleString('en-IN')}`;
-        document.getElementById('summary-costing').innerText = `৳ ${costing.toLocaleString('en-IN')}`;
-        document.getElementById('summary-per-product-cost').innerText = `৳ ${perProdCost.toFixed(2).toLocaleString('en-IN')}`;
-        document.getElementById('summary-total-profit').innerText = `৳ ${totalProfit.toLocaleString('en-IN')}`;
-      }
-
-      filterDailyTableByPrice();
-    }
-
-    function renderMonthlyView() {
-      const monthFilter = document.getElementById('input-monthly-filter').value;
-      const dateFilter = document.getElementById('input-monthly-date-filter').value;
-
-      let filteredSales = sales.filter(s => s.date && s.date.startsWith(monthFilter));
-      if (dateFilter) {
-        filteredSales = filteredSales.filter(s => s.date === dateFilter);
-      }
-
-      const tbody = document.getElementById('tbody-monthly-sales');
-      if (filteredSales.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400 text-xs">No monthly records found for selected filter.</td></tr>`;
-      } else {
-        tbody.innerHTML = filteredSales.map((s, idx) => {
-          return `
-            <tr class="hover:bg-slate-50/80 transition border-b border-slate-100">
-              <td class="p-3 text-center font-bold text-slate-400">${idx + 1}</td>
-              <td class="p-3 font-extrabold text-slate-700">${s.date}</td>
-              <td class="p-3"><img src="${s.image}" class="img-compact shadow-sm"></td>
-              <td class="p-3">
-                <div class="text-xs font-black text-slate-800">Qty: ${(s.monthlyQty !== undefined ? s.monthlyQty : s.qty).toLocaleString('en-IN')} Pcs</div>
-                <div class="text-[11px] text-slate-500 mt-0.5">Sell: ৳${s.selling.toLocaleString('en-IN')} | Buy: ৳${s.buying.toLocaleString('en-IN')}</div>
-              </td>
-              <td class="p-3 font-black text-xs text-indigo-700">৳ ${(s.monthlyGrossProfit !== undefined ? s.monthlyGrossProfit : s.grossProfit).toLocaleString('en-IN')}</td>
-              <td class="p-3 text-xs text-slate-600 leading-relaxed">${s.desc || ''}</td>
-            </tr>
-          `;
-        }).join('');
-      }
-
-      let totalMonthlyQty = 0;
-      let totalMonthlyGross = 0;
-      filteredSales.forEach(s => {
-        totalMonthlyQty += (s.monthlyQty !== undefined ? s.monthlyQty : s.qty);
-        totalMonthlyGross += (s.monthlyGrossProfit !== undefined ? s.monthlyGrossProfit : s.grossProfit);
+      daySales.forEach(s => {
+        totalQty += s.qty;
+        totalGross += s.grossProfit;
       });
 
-      let totalMonthlyCosting = 0;
-      if (dateFilter) {
-        totalMonthlyCosting = dailyCosts[dateFilter] || 0;
-      } else {
-        Object.keys(dailyCosts).forEach(d => {
-          if (d.startsWith(monthFilter)) {
-            totalMonthlyCosting += parseFloat(dailyCosts[d]) || 0;
-          }
-        });
-      }
+      const totalProfit = totalGross - cost;
+      const perProductCost = totalQty > 0 ? (cost / totalQty) : 0;
 
-      document.getElementById('m-stat-qty').innerText = `${totalMonthlyQty.toLocaleString('en-IN')} Pcs`;
-      document.getElementById('m-stat-gross').innerText = `৳ ${totalMonthlyGross.toLocaleString('en-IN')}`;
-      document.getElementById('m-stat-costing').innerText = `৳ ${totalMonthlyCosting.toLocaleString('en-IN')}`;
-      document.getElementById('m-stat-net').innerText = `৳ ${(totalMonthlyGross - totalMonthlyCosting).toLocaleString('en-IN')}`;
-    }
+      document.getElementById('summary-qty').innerText = `${totalQty} Pcs`;
+      document.getElementById('summary-gross-profit').innerText = `৳ ${totalGross.toLocaleString()}`;
+      document.getElementById('summary-costing').innerText = `৳ ${cost.toLocaleString()}`;
+      document.getElementById('summary-per-product-cost').innerText = `৳ ${perProductCost.toFixed(2)}`;
+      
+      const tpEl = document.getElementById('summary-total-profit');
+      tpEl.innerText = `৳ ${totalProfit.toLocaleString()}`;
+      tpEl.className = totalProfit >= 0 ? "font-extrabold text-xs text-emerald-600" : "font-extrabold text-xs text-rose-600";
 
-    function renderGrandTotalView() {
-      let grandQty = 0;
-      let grandGross = 0;
-
-      sales.forEach(s => {
-        grandQty += (s.monthlyQty !== undefined ? s.monthlyQty : s.qty);
-        grandGross += (s.monthlyGrossProfit !== undefined ? s.monthlyGrossProfit : s.grossProfit);
-      });
-
-      let grandCosting = 0;
-      Object.values(dailyCosts).forEach(c => {
-        grandCosting += parseFloat(c) || 0;
-      });
-
-      document.getElementById('g-stat-qty').innerText = `${grandQty.toLocaleString('en-IN')} Pcs`;
-      document.getElementById('g-stat-gross').innerText = `৳ ${grandGross.toLocaleString('en-IN')}`;
-      document.getElementById('g-stat-costing').innerText = `৳ ${grandCosting.toLocaleString('en-IN')}`;
-      document.getElementById('g-stat-net').innerText = `৳ ${(grandGross - grandCosting).toLocaleString('en-IN')}`;
-    }
-
-    function filterDailyTableByPrice() {
-      const searchValue = document.getElementById('input-price-search').value.trim();
       const tbody = document.getElementById('tbody-daily-sales');
       if (!tbody) return;
 
-      const rows = tbody.querySelectorAll('tr');
-      rows.forEach(row => {
-        const sellingPrice = row.getAttribute('data-selling-price');
-        if (!searchValue) {
-          row.style.display = '';
-          return;
-        }
+      if (daySales.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400 font-bold">আজকের তারিখে কোনো সেল এন্ট্রি নেই।</td></tr>`;
+        return;
+      }
 
-        if (sellingPrice === searchValue) {
+      tbody.innerHTML = daySales.map((s, idx) => `
+        <tr class="hover:bg-slate-50/80 transition">
+          <td class="p-3 text-center font-bold text-slate-500">${idx + 1}</td>
+          <td class="p-3"><img src="${s.file}" class="img-compact"></td>
+          <td class="p-3">
+            <div class="font-bold text-slate-900">Buy: ৳${s.buy} | Sell: ৳${s.sell}</div>
+            <div class="mt-1 flex items-center gap-2">
+              <span class="text-[11px] font-bold text-slate-600">Qty:</span>
+              <input type="number" min="0" value="${s.qty}" onchange="updateSaleQty('${s.id}', this.value)" class="w-16 border border-slate-300 rounded px-2 py-1 text-xs font-black text-slate-900 outline-none focus:ring-2 focus:ring-amber-500">
+            </div>
+          </td>
+          <td class="p-3 font-extrabold text-slate-900">
+            <div>Gross: ৳${s.grossProfit}</div>
+          </td>
+          <td class="p-3 text-slate-600">${s.desc || '-'}</td>
+          <td class="p-3 text-center no-print">
+            <button onclick="deleteSale('${s.id}')" class="text-rose-600 hover:text-rose-800 p-2 rounded-lg transition" title="Delete Entry"><i class="fa-solid fa-trash-can text-sm"></i></button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function updateSaleQty(saleId, newQtyVal) {
+      const qty = parseInt(newQtyVal) || 0;
+      const sale = sales.find(s => s.id === saleId);
+      if (!sale) return;
+
+      saveUndoSnapshot(sale.date);
+
+      if (qty <= 0) {
+        db.ref('sales/' + saleId).remove().then(() => renderDailyView());
+        return;
+      }
+
+      const grossProfit = (sale.sell - sale.buy) * qty;
+      db.ref('sales/' + saleId).update({ qty, grossProfit }).then(() => renderDailyView());
+    }
+
+    function deleteSale(saleId) {
+      const sale = sales.find(s => s.id === saleId);
+      if (!sale) return;
+      if (!confirm('এই সেল এন্ট্রিটি মুছে ফেলতে চান?')) return;
+
+      saveUndoSnapshot(sale.date);
+      db.ref('sales/' + saleId).remove().then(() => renderDailyView());
+    }
+
+    function filterDailyTableByPrice() {
+      const searchVal = document.getElementById('input-price-search').value.toLowerCase();
+      const rows = document.querySelectorAll('#tbody-daily-sales tr');
+      rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        if (text.includes(searchVal)) {
           row.style.display = '';
         } else {
           row.style.display = 'none';
@@ -890,43 +792,103 @@
     }
 
     function clearPriceSearch() {
-      const input = document.getElementById('input-price-search');
-      if (input) {
-        input.value = '';
-        filterDailyTableByPrice();
-      }
+      document.getElementById('input-price-search').value = '';
+      filterDailyTableByPrice();
     }
 
-    document.getElementById('input-sale-date').addEventListener('change', () => {
-      const selectedDate = document.getElementById('input-sale-date').value;
-      document.getElementById('input-daily-costing').value = dailyCosts[selectedDate] || 0;
-      renderProductSelector();
-      renderDailyView();
-    });
+    function renderMonthlyView() {
+      const monthFilter = document.getElementById('input-monthly-filter').value;
+      const dateFilter = document.getElementById('input-monthly-date-filter').value;
 
-    document.getElementById('input-daily-costing').addEventListener('input', (e) => {
-      const selectedDate = document.getElementById('input-sale-date').value || todayStr;
-      const val = parseFloat(e.target.value) || 0;
-      db.ref('dailyCosts/' + selectedDate).set(val);
-    });
-
-    document.getElementById('input-monthly-filter').addEventListener('change', renderMonthlyView);
-    document.getElementById('input-monthly-date-filter').addEventListener('change', (e) => {
-      const dateVal = e.target.value;
-      if (dateVal) {
-        document.getElementById('input-monthly-cost-edit').value = dailyCosts[dateVal] || 0;
+      let filteredSales = sales;
+      if (dateFilter) {
+        filteredSales = sales.filter(s => s.date === dateFilter);
+        document.getElementById('monthly-table-title').innerHTML = `<i class="fa-solid fa-calendar-days text-amber-400"></i> Monthly Table for Date: ${dateFilter}`;
+      } else if (monthFilter) {
+        filteredSales = sales.filter(s => s.date && s.date.startsWith(monthFilter));
+        document.getElementById('monthly-table-title').innerHTML = `<i class="fa-solid fa-calendar-days text-amber-400"></i> Monthly Table for Month: ${monthFilter}`;
       } else {
-        document.getElementById('input-monthly-cost-edit').value = '';
+        document.getElementById('monthly-table-title').innerHTML = `<i class="fa-solid fa-calendar-days text-amber-400"></i> All Monthly Sales & Item Breakdown Table`;
       }
-      renderMonthlyView();
-    });
 
-    document.getElementById('input-monthly-cost-edit').addEventListener('input', (e) => {
-      const targetDate = document.getElementById('input-monthly-date-filter').value;
-      if (!targetDate) return;
-      const val = parseFloat(e.target.value) || 0;
-      db.ref('dailyCosts/' + targetDate).set(val);
-    });
+      let mQty = 0;
+      let mGross = 0;
+      let affectedDates = new Set();
+
+      filteredSales.forEach(s => {
+        const q = (s.monthlyQty !== undefined) ? s.monthlyQty : s.qty;
+        const g = (s.monthlyGrossProfit !== undefined) ? s.monthlyGrossProfit : s.grossProfit;
+        mQty += q;
+        mGross += g;
+        if (s.date) affectedDates.add(s.date);
+      });
+
+      let mCosting = 0;
+      affectedDates.forEach(d => {
+        mCosting += parseFloat(dailyCosts[d]) || 0;
+      });
+
+      const mNet = mGross - mCosting;
+
+      document.getElementById('m-stat-qty').innerText = `${mQty} Pcs`;
+      document.getElementById('m-stat-gross').innerText = `৳ ${mGross.toLocaleString()}`;
+      document.getElementById('m-stat-costing').innerText = `৳ ${mCosting.toLocaleString()}`;
+      
+      const mNetEl = document.getElementById('m-stat-net');
+      mNetEl.innerText = `৳ ${mNet.toLocaleString()}`;
+
+      const tbody = document.getElementById('tbody-monthly-sales');
+      if (!tbody) return;
+
+      if (filteredSales.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400 font-bold">এই ফিল্টারে কোনো মান্থলি রিপোর্ট ডাটা পাওয়া যায়নি।</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filteredSales.map((s, idx) => {
+        const q = (s.monthlyQty !== undefined) ? s.monthlyQty : s.qty;
+        const g = (s.monthlyGrossProfit !== undefined) ? s.monthlyGrossProfit : s.grossProfit;
+        return `
+          <tr class="hover:bg-slate-50/80 transition">
+            <td class="p-3 text-center font-bold text-slate-500">${idx + 1}</td>
+            <td class="p-3 font-extrabold text-slate-900">${s.date}</td>
+            <td class="p-3"><img src="${s.file}" class="img-compact"></td>
+            <td class="p-3">
+              <div class="font-bold text-slate-900">Buy: ৳${s.buy} | Sell: ৳${s.sell}</div>
+              <div class="text-xs text-slate-600 font-semibold mt-0.5">Saved Qty: <span class="font-black text-amber-600">${q}</span> Pcs</div>
+            </td>
+            <td class="p-3 font-extrabold text-slate-900">
+              <div>Saved Gross: ৳${g}</div>
+            </td>
+            <td class="p-3 text-slate-600">${s.desc || '-'}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderGrandTotalView() {
+      let gQty = 0;
+      let gGross = 0;
+
+      sales.forEach(s => {
+        const q = (s.monthlyQty !== undefined) ? s.monthlyQty : s.qty;
+        const g = (s.monthlyGrossProfit !== undefined) ? s.monthlyGrossProfit : s.grossProfit;
+        gQty += q;
+        gGross += g;
+      });
+
+      let gCosting = 0;
+      Object.keys(dailyCosts).forEach(d => {
+        gCosting += parseFloat(dailyCosts[d]) || 0;
+      });
+
+      const gNet = gGross - gCosting;
+
+      document.getElementById('g-stat-qty').innerText = `${gQty} Pcs`;
+      document.getElementById('g-stat-gross').innerText = `৳ ${gGross.toLocaleString()}`;
+      document.getElementById('g-stat-costing').innerText = `৳ ${gCosting.toLocaleString()}`;
+      document.getElementById('g-stat-net').innerText = `৳ ${gNet.toLocaleString()}`;
+    }
   </script>
 </body>
 </html>
