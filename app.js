@@ -578,12 +578,11 @@ function renderMonthlyView() {
 }
 
 function renderGrandTotalView() {
-  let grandQty = 0;
-  let grandGross = 0;
   let productStats = {};
 
+  // 1. Initialize stats object for active products (using String keys for reliable matching)
   products.forEach(p => {
-    productStats[p.id] = {
+    productStats[String(p.id)] = {
       id: p.id,
       image: p.image,
       selling: p.selling,
@@ -594,18 +593,26 @@ function renderGrandTotalView() {
     };
   });
 
+  // 2. Aggregate sales quantities into corresponding active product stats
   sales.forEach(s => {
     let q = (s.monthlyQty !== undefined ? s.monthlyQty : s.qty) || 0;
     let g = (s.monthlyGrossProfit !== undefined ? s.monthlyGrossProfit : s.grossProfit) || 0;
-    
-    grandQty += q;
-    grandGross += g;
 
-    let pId = s.productId || (s.id ? s.id.split('_')[1] : null);
+    let pId = String(s.productId || (s.id ? s.id.split('_')[1] : ''));
+    
     if (pId && productStats[pId]) {
       productStats[pId].lifetimeQty += q;
       productStats[pId].lifetimeGross += g;
     }
+  });
+
+  // 3. Compute Grand Totals directly from aggregated productStats
+  let grandQty = 0;
+  let grandGross = 0;
+
+  Object.values(productStats).forEach(p => {
+    grandQty += p.lifetimeQty;
+    grandGross += p.lifetimeGross;
   });
 
   let grandCosting = 0;
@@ -613,11 +620,13 @@ function renderGrandTotalView() {
     grandCosting += parseFloat(c) || 0;
   });
 
+  // 4. Update the Grand Total summary cards
   document.getElementById('g-stat-qty').innerText = `${grandQty} Pcs`;
   document.getElementById('g-stat-gross').innerText = `৳ ${grandGross}`;
   document.getElementById('g-stat-costing').innerText = `৳ ${grandCosting}`;
   document.getElementById('g-stat-net').innerText = `৳ ${grandGross - grandCosting}`;
 
+  // 5. Render the Lifetime Product Sales Breakdown table
   const tbody = document.getElementById('tbody-grand-total-sales');
   if (!tbody) return;
 
