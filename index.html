@@ -5,40 +5,61 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sanvee's Cloud POS & Profit Tracker</title>
   
-  <!-- Tailwind CSS & FontAwesome -->
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <!-- Google Font: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
-  <!-- Firebase Scripts -->
+  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-  <!-- External Stylesheet -->
-  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    @media print {
+      .no-print { display: none !important; }
+      body { background-color: #ffffff !important; color: #000000 !important; }
+      .print-container { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+      .card-shadow { box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
+    }
+    .img-compact { width: 68px; height: 68px; object-fit: cover; border-radius: 12px; border: 1px solid #f1f5f9; }
+    .img-selector { width: 100%; height: 75px; object-fit: cover; border-radius: 8px; }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  </style>
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-800 pb-16 antialiased selection:bg-amber-200 selection:text-amber-900">
+<body class="bg-slate-50 text-slate-800 min-h-screen pb-16 antialiased selection:bg-indigo-500 selection:text-white">
 
   <!-- LOGIN SCREEN -->
-  <div id="login-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-all duration-300">
-    <div class="bg-white rounded-3xl p-6 md:p-8 max-w-sm w-full shadow-2xl border border-slate-100 transform transition-all">
+  <div id="login-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-slate-100 transition-all">
       <div class="text-center mb-6">
-        <div class="inline-flex bg-amber-500 text-slate-900 font-black px-4 py-2 rounded-xl text-2xl mb-2 shadow-sm">S</div>
-        <h2 class="text-xl font-extrabold text-slate-900">Admin Login</h2>
-        <p class="text-[11px] text-slate-500">Sanvee's Cloud POS System</p>
+        <div class="inline-flex bg-gradient-to-br from-indigo-600 to-indigo-700 text-white font-black px-4 py-2.5 rounded-2xl text-2xl mb-3 shadow-lg shadow-indigo-500/30">S</div>
+        <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">Admin Login</h2>
+        <p class="text-xs text-slate-500 mt-1">Sanvee's Cloud POS System</p>
       </div>
       <form id="form-login" class="space-y-4">
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider">Username</label>
-          <input type="text" id="login-username" required placeholder="admin" class="w-full border border-slate-200 rounded-xl p-3 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 font-semibold transition-all">
+          <label class="block text-[11px] font-extrabold text-slate-600 mb-1.5 uppercase tracking-wider">Username</label>
+          <input type="text" id="login-username" required placeholder="admin" class="w-full border border-slate-200 bg-slate-50/50 rounded-xl p-3 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-semibold transition">
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1 uppercase tracking-wider">Password</label>
-          <input type="password" id="login-password" required placeholder="••••••••" class="w-full border border-slate-200 rounded-xl p-3 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 font-semibold transition-all">
+          <label class="block text-[11px] font-extrabold text-slate-600 mb-1.5 uppercase tracking-wider">Password</label>
+          <input type="password" id="login-password" required placeholder="••••••••" class="w-full border border-slate-200 bg-slate-50/50 rounded-xl p-3 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-semibold transition">
         </div>
-        <div id="login-error" class="hidden text-xs font-bold text-rose-600 text-center bg-rose-50 p-2.5 rounded-xl border border-rose-100 fade-in">
+        <div id="login-error" class="hidden text-xs font-bold text-rose-600 text-center bg-rose-50/80 p-3 rounded-xl border border-rose-100">
           ইউজারনেম বা পাসওয়ার্ড ভুল হয়েছে!
         </div>
-        <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-amber-400 font-extrabold py-3.5 rounded-xl text-sm transition-all shadow-md hover:shadow-lg">
+        <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-amber-400 font-extrabold py-3.5 rounded-xl text-xs transition-all duration-200 shadow-xl shadow-slate-900/10 active:scale-[0.98]">
           <i class="fa-solid fa-lock-open mr-1.5"></i> Secure Login
         </button>
       </form>
@@ -48,38 +69,39 @@
   <!-- MAIN APPLICATION CONTENT -->
   <div id="app-content" class="hidden">
     <!-- HEADER -->
-    <header class="bg-slate-900/95 backdrop-blur-md text-white sticky top-0 z-40 shadow-md no-print border-b border-slate-800">
-      <div class="w-full px-4 lg:px-8 py-3 flex justify-between items-center">
-        <div class="flex items-center space-x-3">
-          <div class="bg-gradient-to-tr from-amber-500 to-amber-400 text-slate-900 font-black px-3.5 py-1.5 rounded-xl text-xl shadow-sm">S</div>
+    <header class="bg-slate-950 text-white sticky top-0 z-40 shadow-xl shadow-slate-950/5 no-print border-b border-slate-800/80 backdrop-blur-md">
+      <div class="w-full px-4 lg:px-8 py-3.5 flex justify-between items-center">
+        <div class="flex items-center space-x-3.5">
+          <div class="bg-gradient-to-tr from-amber-400 to-amber-500 text-slate-950 font-black px-3.5 py-1.5 rounded-xl text-xl shadow-md shadow-amber-500/20">S</div>
           <div>
-            <h1 class="text-base md:text-lg font-bold leading-none tracking-tight">Sanvee's POS & Profit Tracker</h1>
-            <p class="text-[11px] text-slate-400 mt-1 flex items-center gap-1.5 font-medium">
-              <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span>
+            <h1 class="text-base md:text-lg font-extrabold leading-tight tracking-tight">Sanvee's POS & Profit Tracker</h1>
+            <p class="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1.5 font-medium">
+              <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
               Cloud Synced Live
             </p>
           </div>
         </div>
-        <div class="flex items-center gap-2.5">
-          <button type="button" onclick="window.print()" class="bg-amber-500 hover:bg-amber-600 active:scale-[0.95] text-slate-900 font-extrabold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-sm">
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="window.print()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-sm border border-slate-700/60">
             <i class="fa-solid fa-print"></i> Print
           </button>
-          <button type="button" onclick="handleLogout()" class="bg-rose-600 hover:bg-rose-700 active:scale-[0.95] text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-sm">
+          <button type="button" onclick="handleLogout()" class="bg-rose-600/90 hover:bg-rose-600 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-sm">
             <i class="fa-solid fa-right-from-bracket"></i> Logout
           </button>
         </div>
       </div>
 
-      <div class="bg-slate-800/50 text-xs font-semibold">
-        <div class="w-full px-4 lg:px-8 flex">
-          <button type="button" id="tab-daily-btn" onclick="switchTab('daily')" class="flex-1 py-3 text-center border-b-2 border-amber-500 text-amber-400 bg-slate-900/60 font-bold flex justify-center items-center gap-2 transition-colors">
+      <!-- TABS NAV -->
+      <div class="bg-slate-900/90 border-t border-slate-800/80 text-xs font-semibold">
+        <div class="w-full px-4 lg:px-8 flex space-x-1">
+          <button type="button" id="tab-daily-btn" onclick="switchTab('daily')" class="flex-1 py-3 text-center border-b-2 border-amber-400 text-amber-400 font-bold flex justify-center items-center gap-2 transition-all">
             <i class="fa-solid fa-calendar-day"></i> Daily Entry & Breakdown
           </button>
-          <button type="button" id="tab-monthly-btn" onclick="switchTab('monthly')" class="flex-1 py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30 flex justify-center items-center gap-2 transition-colors">
+          <button type="button" id="tab-monthly-btn" onclick="switchTab('monthly')" class="flex-1 py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex justify-center items-center gap-2 transition-all">
             <i class="fa-solid fa-chart-column"></i> Monthly Automatic Sector
           </button>
-          <button type="button" id="tab-total-btn" onclick="switchTab('total')" class="flex-1 py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30 flex justify-center items-center gap-2 transition-colors">
-            <i class="fa-solid fa-chart-pie"></i> Grand Total Summary (In Total)
+          <button type="button" id="tab-total-btn" onclick="switchTab('total')" class="flex-1 py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex justify-center items-center gap-2 transition-all">
+            <i class="fa-solid fa-chart-pie"></i> Grand Total Summary
           </button>
         </div>
       </div>
@@ -87,128 +109,103 @@
 
     <main class="w-full px-4 lg:px-8 py-6 print-container space-y-6">
 
-      <!-- EDIT PRODUCT MODAL -->
-      <div id="edit-product-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] hidden items-center justify-center p-4 transition-opacity">
-        <div class="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-slate-100 transform scale-100 fade-in">
-          <h2 class="text-lg font-bold mb-4 text-slate-800 flex items-center gap-2">
-            <i class="fa-solid fa-pen-to-square text-amber-500"></i> Edit Product
-          </h2>
-          <form id="form-edit-product" class="space-y-4">
-            <input type="hidden" id="edit-prod-id">
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-[11px] font-bold text-slate-600 mb-1">Buying Price (৳)</label>
-                <input type="number" id="edit-prod-buy" min="0" required class="w-full border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 font-semibold transition-all">
-              </div>
-              <div>
-                <label class="block text-[11px] font-bold text-slate-600 mb-1">Selling Price (৳)</label>
-                <input type="number" id="edit-prod-sell" min="0" required class="w-full border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 font-semibold transition-all">
-              </div>
-            </div>
-            <div>
-              <label class="block text-[11px] font-bold text-slate-600 mb-1">Description / Note</label>
-              <input type="text" id="edit-prod-desc" class="w-full border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 font-semibold transition-all">
-            </div>
-            <div class="flex gap-2 justify-end mt-6">
-              <button type="button" onclick="closeEditModal()" class="bg-slate-100 hover:bg-slate-200 active:scale-[0.98] text-slate-800 px-5 py-2.5 rounded-xl text-xs font-bold transition-all">Cancel</button>
-              <button type="submit" class="bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-slate-900 px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm">Save Changes</button>
-            </div>
-          </form>
-        </div>
-      </div>
-
       <!-- TAB 1: DAILY ENTRY -->
-      <div id="tab-daily" class="space-y-6 fade-in">
+      <div id="tab-daily" class="space-y-6">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           <!-- 1. ADD PRODUCT -->
-          <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow no-print space-y-4">
-            <h2 class="text-xs font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-3 flex items-center gap-2">
-              <i class="fa-solid fa-cloud-arrow-up text-amber-500"></i> 1. Add Product Picture
-            </h2>
-            <form id="form-add-product" class="space-y-4">
+          <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm no-print space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h2 class="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <span class="w-6 h-6 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-xs"><i class="fa-solid fa-cloud-arrow-up"></i></span> 
+                1. Add Product Picture
+              </h2>
+            </div>
+            <form id="form-add-product" class="space-y-3.5">
               <div>
                 <label class="block text-[11px] font-bold text-slate-600 mb-1">Product Image</label>
-                <input type="file" id="input-prod-file" accept="image/*" required class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 transition-colors cursor-pointer">
+                <input type="file" id="input-prod-file" accept="image/*" required class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3.5 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-amber-50 file:text-amber-800 hover:file:bg-amber-100 transition cursor-pointer">
               </div>
               <div class="grid grid-cols-2 gap-3">
                 <div>
                   <label class="block text-[11px] font-bold text-slate-600 mb-1">Buying Price (৳)</label>
-                  <input type="number" id="input-prod-buy" min="0" placeholder="0" required class="w-full border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 font-semibold transition-all">
+                  <input type="number" id="input-prod-buy" min="0" placeholder="0" required class="w-full border border-slate-200 bg-slate-50/50 rounded-xl p-2.5 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 font-semibold transition">
                 </div>
                 <div>
                   <label class="block text-[11px] font-bold text-slate-600 mb-1">Selling Price (৳)</label>
-                  <input type="number" id="input-prod-sell" min="0" placeholder="0" required class="w-full border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 font-semibold transition-all">
+                  <input type="number" id="input-prod-sell" min="0" placeholder="0" required class="w-full border border-slate-200 bg-slate-50/50 rounded-xl p-2.5 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 font-semibold transition">
                 </div>
               </div>
               <div>
                 <label class="block text-[11px] font-bold text-slate-600 mb-1">Description / Note</label>
-                <input type="text" id="input-prod-desc" placeholder="Note / Description" class="w-full border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 font-semibold transition-all">
+                <input type="text" id="input-prod-desc" placeholder="Note / Description" class="w-full border border-slate-200 bg-slate-50/50 rounded-xl p-2.5 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 font-semibold transition">
               </div>
-              <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white font-bold py-3 rounded-xl text-xs transition-all shadow-sm hover:shadow">
+              <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-extrabold py-3 rounded-xl text-xs transition shadow-md shadow-slate-900/10 active:scale-[0.98]">
                 Save Product to Cloud
               </button>
             </form>
           </div>
 
           <!-- 2. RECORD SALE -->
-          <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow no-print space-y-4">
-            <h2 class="text-xs font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-3 flex items-center justify-between">
-              <span class="flex items-center gap-2"><i class="fa-solid fa-cart-circle-check text-emerald-500"></i> 2. Record / Edit Daily Sale</span>
-            </h2>
-            <form id="form-sale-entry" class="space-y-4">
+          <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm no-print space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h2 class="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <span class="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs"><i class="fa-solid fa-cart-circle-check"></i></span>
+                2. Record / Edit Daily Sale
+              </h2>
+            </div>
+            <form id="form-sale-entry" class="space-y-3.5">
               <div>
                 <label class="block text-[11px] font-bold text-slate-600 mb-1.5">Select Product Picture</label>
-                <div id="product-grid-selector" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6 gap-2 max-h-[14rem] overflow-y-auto p-2.5 border border-slate-100 rounded-xl bg-slate-50"></div>
+                <div id="product-grid-selector" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6 gap-2 max-h-48 overflow-y-auto p-2 border border-slate-200/80 rounded-xl bg-slate-50/50"></div>
                 <input type="hidden" id="selected-prod-id">
               </div>
               <div class="grid grid-cols-2 gap-3">
                 <div>
                   <label class="block text-[11px] font-bold text-slate-600 mb-1">Quantity (Pieces)</label>
-                  <input type="number" id="input-sale-qty" min="0" value="1" required class="w-full border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 font-extrabold text-slate-900 transition-all">
+                  <input type="number" id="input-sale-qty" min="0" value="1" required class="w-full border border-slate-200 bg-slate-50/50 rounded-xl p-2.5 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-extrabold text-slate-900 transition">
                 </div>
                 <div>
                   <label class="block text-[11px] font-bold text-slate-600 mb-1">Date</label>
-                  <input type="date" id="input-sale-date" required class="w-full border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 font-semibold transition-all cursor-pointer">
+                  <input type="date" id="input-sale-date" required class="w-full border border-slate-200 bg-slate-50/50 rounded-xl p-2.5 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-semibold transition">
                 </div>
               </div>
-              <button type="submit" id="btn-sale-submit" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold py-3 rounded-xl text-xs transition-all shadow-sm hover:shadow flex items-center justify-center gap-2">
+              <button type="submit" id="btn-sale-submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl text-xs transition shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 active:scale-[0.98]">
                 <i class="fa-solid fa-plus"></i> Add / Update Sale Entry
               </button>
             </form>
           </div>
 
           <!-- 3. SUMMARY CARD -->
-          <div class="bg-gradient-to-br from-amber-50 via-white to-amber-50/50 border border-slate-200 rounded-3xl p-6 shadow-md text-slate-900 flex flex-col justify-between card-shadow relative overflow-hidden">
-            <div class="absolute top-0 right-0 w-32 h-32 bg-amber-200/30 rounded-full blur-3xl pointer-events-none"></div>
-            <div class="relative z-10">
-              <div class="bg-amber-300 border border-amber-400 text-center py-2 px-3 rounded-xl font-black text-sm md:text-base uppercase mb-3 tracking-wide shadow-sm text-amber-900">SANVEE'S DAILY SALE</div>
-              <div id="summary-header-date" class="bg-rose-100 text-rose-800 border border-rose-200 text-center py-1.5 px-3 rounded-lg font-bold text-xs mb-4 shadow-sm">Date: --</div>
+          <div class="bg-gradient-to-br from-amber-500/10 via-amber-400/5 to-transparent border border-amber-300/80 rounded-2xl p-5 shadow-sm text-slate-900 flex flex-col justify-between card-shadow relative overflow-hidden">
+            <div>
+              <div class="bg-amber-400 border border-amber-500/40 text-slate-950 text-center py-2 px-3 rounded-xl font-black text-xs md:text-sm uppercase mb-2 tracking-wide shadow-sm">SANVEE'S DAILY SALE</div>
+              <div id="summary-header-date" class="bg-rose-100/90 border border-rose-200 text-rose-800 text-center py-1 px-3 rounded-lg font-bold text-xs mb-3">Date: --</div>
               
-              <div class="mb-4 no-print bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-                <label class="block text-[11px] font-bold text-slate-600 mb-1.5">Daily Boosting Cost (৳):</label>
-                <input type="number" id="input-daily-costing" value="0" min="0" class="w-full border border-slate-200 rounded-lg p-2.5 text-right font-black text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all">
+              <div class="mb-3 no-print bg-white p-2.5 rounded-xl border border-amber-200 shadow-xs">
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">Daily Boosting Cost (৳):</label>
+                <input type="number" id="input-daily-costing" value="0" min="0" class="w-full border border-slate-200 rounded-lg p-2 text-right font-black text-sm text-slate-900 outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
               </div>
 
-              <div class="border border-slate-200 rounded-xl overflow-hidden bg-white text-xs font-semibold divide-y divide-slate-100 shadow-sm">
-                <div class="flex justify-between p-3 bg-slate-50/50 text-slate-600"><span>Quantity</span><span id="summary-qty" class="font-extrabold text-xs text-slate-900">0 Pcs</span></div>
-                <div class="flex justify-between p-3 text-slate-600"><span>Profit</span><span id="summary-gross-profit" class="font-extrabold text-xs text-slate-900">৳ 0</span></div>
-                <div class="flex justify-between p-3 bg-slate-50/50 text-slate-600"><span>Costing</span><span id="summary-costing" class="font-extrabold text-xs text-rose-600">৳ 0</span></div>
-                <div class="flex justify-between p-3 text-slate-600"><span>Per Product Cost</span><span id="summary-per-product-cost" class="font-extrabold text-xs text-slate-900">৳ 0</span></div>
-                <div class="flex justify-between p-3 bg-amber-100/50 font-black text-xs border-t border-amber-200 text-amber-900"><span>Total Profit</span><span id="summary-total-profit" class="font-extrabold text-xs text-rose-600">৳ 0</span></div>
+              <div class="border border-slate-200/90 rounded-xl overflow-hidden bg-white text-xs font-semibold divide-y divide-slate-100 shadow-xs">
+                <div class="flex justify-between p-2.5 bg-slate-50/50"><span>Quantity</span><span id="summary-qty" class="font-extrabold text-xs">0 Pcs</span></div>
+                <div class="flex justify-between p-2.5"><span>Profit</span><span id="summary-gross-profit" class="font-extrabold text-xs text-slate-900">৳ 0</span></div>
+                <div class="flex justify-between p-2.5 bg-slate-50/50"><span>Costing</span><span id="summary-costing" class="font-extrabold text-xs text-rose-600">৳ 0</span></div>
+                <div class="flex justify-between p-2.5"><span>Per Product Cost</span><span id="summary-per-product-cost" class="font-extrabold text-xs">৳ 0</span></div>
+                <div class="flex justify-between p-2.5 bg-amber-200/80 font-black text-xs border-t border-amber-300"><span>Total Profit</span><span id="summary-total-profit" class="font-extrabold text-xs text-slate-950">৳ 0</span></div>
               </div>
 
               <!-- ACTION BUTTONS -->
-              <div class="mt-5 no-print space-y-2.5">
-                <button type="button" onclick="saveTodayToMonthly()" title="Commit today's sales to monthly report" class="w-full bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white font-bold py-3 px-3 rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow hover:shadow-md">
-                  <i class="fa-solid fa-floppy-disk text-amber-400"></i> Save Today's Data to Monthly
+              <div class="mt-4 no-print space-y-2">
+                <button type="button" onclick="saveTodayToMonthly()" title="Commit today's sales to monthly report" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 px-3 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-sm">
+                  <i class="fa-solid fa-floppy-disk text-amber-300"></i> Save Today's Data to Monthly
                 </button>
                 
-                <div class="flex gap-2.5">
-                  <button type="button" onclick="clearTodaySale()" title="Clear Today's Sale" class="flex-1 bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-600 hover:text-white active:scale-[0.95] font-bold py-2.5 px-2 rounded-xl text-[11px] transition-all flex items-center justify-center gap-1.5 shadow-sm">
+                <div class="flex gap-2">
+                  <button type="button" onclick="clearTodaySale()" title="Clear Today's Sale" class="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-2.5 rounded-xl text-[11px] transition flex items-center justify-center gap-1.5 shadow-xs">
                     <i class="fa-solid fa-broom"></i> Clear Daily
                   </button>
-                  <button type="button" onclick="performUndo()" title="Undo Last Action (Ctrl+Z)" class="flex-1 bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 active:scale-[0.95] font-bold py-2.5 px-3 rounded-xl text-[11px] transition-all flex items-center justify-center gap-1.5 shadow-sm">
+                  <button type="button" onclick="performUndo()" title="Undo Last Action (Ctrl+Z)" class="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 px-3 rounded-xl text-[11px] transition flex items-center justify-center gap-1.5 shadow-xs">
                     <i class="fa-solid fa-rotate-left"></i> Undo
                   </button>
                 </div>
@@ -220,69 +217,69 @@
         </div>
 
         <!-- DAILY TABLE -->
-        <div class="bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden card-shadow">
-          <div class="p-4 bg-slate-900 text-white font-bold text-xs flex flex-wrap justify-between items-center gap-3 border-b border-slate-800">
-            <span class="text-sm tracking-wide flex items-center gap-2 font-extrabold"><i class="fa-solid fa-list-check text-amber-400"></i> Daily Sales Breakdown</span>
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden card-shadow">
+          <div class="p-4 bg-slate-950 text-white font-bold text-xs flex flex-wrap justify-between items-center gap-3">
+            <span class="text-xs md:text-sm tracking-wide flex items-center gap-2"><i class="fa-solid fa-list-check text-amber-400"></i> Daily Sales Breakdown Table</span>
             
             <!-- PRICE SEARCH BOX -->
-            <div class="flex items-center gap-2 no-print bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-700 focus-within:border-amber-500 transition-colors">
+            <div class="flex items-center gap-2 no-print bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">
               <label for="input-price-search" class="text-xs text-amber-400 font-bold flex items-center gap-1.5">
                 <i class="fa-solid fa-magnifying-glass"></i> Price Search:
               </label>
-              <input type="number" id="input-price-search" oninput="filterDailyTableByPrice()" placeholder="e.g. 1850" class="px-2.5 py-1 text-xs text-slate-900 rounded-lg outline-none w-32 font-black border border-transparent focus:ring-2 focus:ring-amber-500 bg-slate-50 transition-all">
-              <button type="button" onclick="clearPriceSearch()" class="text-[11px] bg-slate-700 hover:bg-slate-600 active:scale-95 px-3 py-1 rounded-lg text-slate-200 font-bold transition-all">Clear</button>
+              <input type="number" id="input-price-search" oninput="filterDailyTableByPrice()" placeholder="e.g. 1850" class="px-2.5 py-1 text-xs text-slate-900 bg-white rounded-lg outline-none w-28 font-extrabold border border-slate-300 focus:ring-2 focus:ring-amber-400">
+              <button type="button" onclick="clearPriceSearch()" class="text-[11px] bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded-lg text-slate-200 font-bold transition">Clear</button>
             </div>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse text-xs">
-              <thead class="bg-slate-50 text-slate-500 font-extrabold border-b border-slate-200 uppercase tracking-wider text-[10px]">
+              <thead class="bg-slate-100/80 text-slate-600 font-extrabold border-b border-slate-200 uppercase tracking-wider">
                 <tr>
-                  <th class="p-4 text-center w-12">SL</th>
-                  <th class="p-4 w-32">Picture</th>
-                  <th class="p-4">Info & Editable Qty</th>
-                  <th class="p-4 w-32">Financials</th>
-                  <th class="p-4">Description</th>
-                  <th class="p-4 text-center no-print w-14">Action</th>
+                  <th class="p-3.5 text-center w-12">SL</th>
+                  <th class="p-3.5 w-28">Picture</th>
+                  <th class="p-3.5">Info & Editable Qty</th>
+                  <th class="p-3.5 w-32">Financials</th>
+                  <th class="p-3.5">Description</th>
+                  <th class="p-3.5 text-center no-print w-14">Action</th>
                 </tr>
               </thead>
-              <tbody id="tbody-daily-sales" class="divide-y divide-slate-50 font-medium"></tbody>
+              <tbody id="tbody-daily-sales" class="divide-y divide-slate-100 font-medium"></tbody>
             </table>
           </div>
         </div>
       </div>
 
       <!-- TAB 2: MONTHLY -->
-      <div id="tab-monthly" class="hidden space-y-6 fade-in">
-        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5">
+      <div id="tab-monthly" class="hidden space-y-6">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           <div>
-            <h2 class="text-base font-extrabold text-slate-900 tracking-wide">Automatic Monthly Summary Report</h2>
-            <p class="text-[11px] text-slate-500 mt-1 font-medium">Filter by month or select a specific date to edit costing & breakdown</p>
+            <h2 class="text-base font-extrabold text-slate-900 uppercase tracking-wide">Automatic Monthly Summary Report</h2>
+            <p class="text-[11px] text-slate-500 mt-0.5">Filter by month or select a date to edit costing & breakdown</p>
           </div>
           
           <!-- FILTERS & COSTING EDIT AREA -->
           <div class="flex flex-wrap items-end gap-3 w-full lg:w-auto">
             <div>
-              <label class="block text-[10px] font-extrabold text-slate-500 mb-1.5 uppercase tracking-wider">Select Month</label>
-              <input type="month" id="input-monthly-filter" class="border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-900 bg-amber-50/50 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all cursor-pointer">
+              <label class="block text-[10px] font-extrabold text-slate-500 mb-1 uppercase tracking-wider">Select Month</label>
+              <input type="month" id="input-monthly-filter" class="border border-slate-200 bg-slate-50 rounded-xl p-2 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition">
             </div>
 
             <div>
-              <label class="block text-[10px] font-extrabold text-slate-500 mb-1.5 uppercase tracking-wider">Specific Date Filter</label>
-              <input type="date" id="input-monthly-date-filter" class="border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-900 bg-indigo-50/30 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all cursor-pointer">
+              <label class="block text-[10px] font-extrabold text-slate-500 mb-1 uppercase tracking-wider">Specific Date Filter</label>
+              <input type="date" id="input-monthly-date-filter" class="border border-slate-200 bg-slate-50 rounded-xl p-2 text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition">
             </div>
 
             <!-- EDIT COSTING FOR SELECTED DATE -->
-            <div id="wrapper-monthly-cost-edit" class="bg-rose-50 p-2.5 rounded-xl border border-rose-100 flex flex-col">
-              <label class="block text-[10px] font-extrabold text-rose-700 mb-1 uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-pen text-[8px]"></i> Edit Date Costing (৳)</label>
-              <input type="number" id="input-monthly-cost-edit" min="0" placeholder="0" class="w-32 border border-rose-200 rounded-lg p-1.5 text-xs font-black text-rose-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition-all bg-white">
+            <div id="wrapper-monthly-cost-edit" class="bg-rose-50/80 p-2 rounded-xl border border-rose-100 flex flex-col">
+              <label class="block text-[10px] font-extrabold text-rose-700 mb-0.5 uppercase tracking-wider"><i class="fa-solid fa-pen"></i> Edit Date Costing (৳)</label>
+              <input type="number" id="input-monthly-cost-edit" min="0" placeholder="0" class="w-32 border border-rose-200 rounded-lg p-1.5 text-xs font-black text-rose-900 outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500">
             </div>
 
             <div class="flex items-center gap-2">
-              <button type="button" onclick="clearDateFilter()" title="Show all days of month" class="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 active:scale-95 font-bold px-4 py-2.5 rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-sm">
+              <button type="button" onclick="clearDateFilter()" title="Show all days of month" class="bg-slate-900 hover:bg-slate-800 text-white font-bold px-3 py-2 rounded-xl text-xs transition flex items-center gap-1.5 shadow-xs">
                 <i class="fa-solid fa-filter-circle-xmark"></i> All Days
               </button>
-              <button type="button" onclick="resetDayWiseData()" class="bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white border border-rose-200 active:scale-95 font-bold px-4 py-2.5 rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-sm">
-                <i class="fa-solid fa-rotate-left"></i> Reset to 0
+              <button type="button" onclick="resetDayWiseData()" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-3 py-2 rounded-xl text-xs transition flex items-center gap-1.5 shadow-xs">
+                <i class="fa-solid fa-rotate-left"></i> Reset Day Data to 0
               </button>
             </div>
           </div>
@@ -290,90 +287,101 @@
         
         <!-- STATS CARDS -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div class="bg-slate-900 text-white p-5 rounded-2xl shadow-md border-b-4 border-amber-500 transform hover:-translate-y-1 transition-transform"><p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Total Quantity</p><p id="m-stat-qty" class="text-3xl font-black mt-1 text-amber-400">0 Pcs</p></div>
-          <div class="bg-white text-slate-900 p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md border-b-4 border-indigo-500 transform hover:-translate-y-1 transition-all"><p class="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Gross Profit</p><p id="m-stat-gross" class="text-3xl font-black mt-1 text-indigo-600">৳ 0</p></div>
-          <div class="bg-white text-slate-900 p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md border-b-4 border-rose-500 transform hover:-translate-y-1 transition-all"><p class="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Costing</p><p id="m-stat-costing" class="text-3xl font-black mt-1 text-rose-500">৳ 0</p></div>
-          <div class="bg-gradient-to-br from-amber-400 to-amber-500 text-slate-950 p-5 rounded-2xl shadow-md border-b-4 border-slate-900 transform hover:-translate-y-1 transition-all"><p class="text-[11px] font-extrabold text-amber-900 uppercase tracking-wider">Net Profit</p><p id="m-stat-net" class="text-3xl font-black mt-1 text-slate-950">৳ 0</p></div>
+          <div class="bg-slate-950 text-white p-5 rounded-2xl shadow-sm border-l-4 border-amber-400 flex flex-col justify-between">
+            <p class="text-[11px] text-slate-400 font-extrabold uppercase tracking-wider">Total Quantity</p>
+            <p id="m-stat-qty" class="text-2xl md:text-3xl font-black mt-2 text-amber-400">0 Pcs</p>
+          </div>
+          <div class="bg-white text-slate-900 p-5 rounded-2xl border border-slate-200/80 shadow-sm border-l-4 border-indigo-500 flex flex-col justify-between">
+            <p class="text-[11px] text-slate-500 font-extrabold uppercase tracking-wider">Gross Profit</p>
+            <p id="m-stat-gross" class="text-2xl md:text-3xl font-black mt-2 text-indigo-600">৳ 0</p>
+          </div>
+          <div class="bg-white text-slate-900 p-5 rounded-2xl border border-slate-200/80 shadow-sm border-l-4 border-rose-500 flex flex-col justify-between">
+            <p class="text-[11px] text-slate-500 font-extrabold uppercase tracking-wider">Costing</p>
+            <p id="m-stat-costing" class="text-2xl md:text-3xl font-black mt-2 text-rose-600">৳ 0</p>
+          </div>
+          <div class="bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 p-5 rounded-2xl shadow-md border-l-4 border-slate-950 flex flex-col justify-between">
+            <p class="text-[11px] font-extrabold uppercase tracking-wider">Net Profit</p>
+            <p id="m-stat-net" class="text-2xl md:text-3xl font-black mt-2">৳ 0</p>
+          </div>
         </div>
 
         <!-- MONTHLY BREAKDOWN TABLE -->
-        <div class="bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden card-shadow">
-          <div class="p-4 bg-slate-900 text-white font-bold text-xs flex justify-between items-center border-b border-slate-800">
-            <span id="monthly-table-title" class="text-sm tracking-wide font-extrabold flex items-center gap-2"><i class="fa-solid fa-calendar-days text-amber-400"></i> Monthly Sales & Breakdown</span>
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden card-shadow">
+          <div class="p-4 bg-slate-950 text-white font-bold text-xs flex justify-between items-center">
+            <span id="monthly-table-title" class="text-xs md:text-sm tracking-wide"><i class="fa-solid fa-calendar-days text-amber-400"></i> Monthly Sales & Item Breakdown Table</span>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse text-xs">
-              <thead class="bg-slate-50 text-slate-500 font-extrabold border-b border-slate-200 uppercase tracking-wider text-[10px]">
+              <thead class="bg-slate-100/80 text-slate-600 font-extrabold border-b border-slate-200 uppercase tracking-wider">
                 <tr>
-                  <th class="p-4 text-center w-12">SL</th>
-                  <th class="p-4 w-28">Date</th>
-                  <th class="p-4 w-32">Picture</th>
-                  <th class="p-4">Info</th>
-                  <th class="p-4 w-32">Financials</th>
-                  <th class="p-4">Description</th>
-                  <th class="p-4 text-center no-print w-14">Action</th>
+                  <th class="p-3.5 text-center w-12">SL</th>
+                  <th class="p-3.5 w-28">Date</th>
+                  <th class="p-3.5 w-28">Picture</th>
+                  <th class="p-3.5">Info</th>
+                  <th class="p-3.5 w-32">Financials</th>
+                  <th class="p-3.5">Description</th>
+                  <th class="p-3.5 text-center no-print w-14">Action</th>
                 </tr>
               </thead>
-              <tbody id="tbody-monthly-sales" class="divide-y divide-slate-50 font-medium"></tbody>
+              <tbody id="tbody-monthly-sales" class="divide-y divide-slate-100 font-medium"></tbody>
             </table>
           </div>
         </div>
       </div>
 
       <!-- TAB 3: GRAND TOTAL (IN TOTAL) -->
-      <div id="tab-total" class="hidden space-y-6 fade-in">
-        <div class="bg-slate-900 text-white p-6 rounded-3xl shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative overflow-hidden border border-slate-800">
-          <div class="absolute -top-10 -right-10 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
-          <div class="relative z-10">
-            <h2 class="text-lg font-extrabold text-amber-400 uppercase tracking-wide flex items-center gap-2">
+      <div id="tab-total" class="hidden space-y-6">
+        <div class="bg-slate-950 text-white p-6 rounded-2xl border border-slate-800 shadow-md flex justify-between items-center">
+          <div>
+            <h2 class="text-base font-extrabold text-amber-400 uppercase tracking-wider flex items-center gap-2">
               <i class="fa-solid fa-chart-pie"></i> Grand Total Lifetime Summary
             </h2>
-            <p class="text-xs text-slate-400 mt-1 font-medium">ডাটাবেজে থাকা সর্বমোট রিয়েল-টাইম লাইফটাইম হিসাব (All-Time Data)</p>
+            <p class="text-[11px] text-slate-400 mt-1">ডাটাবেজে থাকা সর্বমোট রিয়েল-টাইম লাইফটাইম হিসাব (All-Time Data)</p>
           </div>
-          <div class="bg-slate-800/80 backdrop-blur px-4 py-2 rounded-xl border border-slate-700 font-bold text-xs text-amber-400 shadow-inner relative z-10">
-            <i class="fa-solid fa-globe mr-1"></i> Overall Cloud Summary
+          <div class="bg-slate-900 px-3.5 py-1.5 rounded-xl border border-slate-800 font-bold text-xs text-amber-400 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Overall Cloud Summary
           </div>
         </div>
 
         <!-- GRAND TOTAL CARDS -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div class="bg-slate-900 text-white p-6 rounded-2xl shadow-md border-b-4 border-amber-500 transform hover:-translate-y-1 transition-all">
-            <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Grand Quantity</p>
-            <p id="g-stat-qty" class="text-4xl font-black mt-2 text-amber-400 tracking-tight">0 Pcs</p>
+          <div class="bg-slate-950 text-white p-5 rounded-2xl shadow-sm border-l-4 border-amber-400 flex flex-col justify-between">
+            <p class="text-[11px] text-slate-400 font-extrabold uppercase tracking-wider">Grand Quantity</p>
+            <p id="g-stat-qty" class="text-2xl md:text-3xl font-black mt-2 text-amber-400">0 Pcs</p>
           </div>
-          <div class="bg-white text-slate-900 p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md border-b-4 border-emerald-500 transform hover:-translate-y-1 transition-all">
-            <p class="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Grand Gross Profit</p>
-            <p id="g-stat-gross" class="text-4xl font-black mt-2 text-emerald-500 tracking-tight">৳ 0</p>
+          <div class="bg-white text-slate-900 p-5 rounded-2xl border border-slate-200/80 shadow-sm border-l-4 border-emerald-500 flex flex-col justify-between">
+            <p class="text-[11px] text-slate-500 font-extrabold uppercase tracking-wider">Grand Gross Profit</p>
+            <p id="g-stat-gross" class="text-2xl md:text-3xl font-black mt-2 text-emerald-600">৳ 0</p>
           </div>
-          <div class="bg-white text-slate-900 p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md border-b-4 border-rose-500 transform hover:-translate-y-1 transition-all">
-            <p class="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Grand Total Costing</p>
-            <p id="g-stat-costing" class="text-4xl font-black mt-2 text-rose-500 tracking-tight">৳ 0</p>
+          <div class="bg-white text-slate-900 p-5 rounded-2xl border border-slate-200/80 shadow-sm border-l-4 border-rose-500 flex flex-col justify-between">
+            <p class="text-[11px] text-slate-500 font-extrabold uppercase tracking-wider">Grand Total Costing</p>
+            <p id="g-stat-costing" class="text-2xl md:text-3xl font-black mt-2 text-rose-600">৳ 0</p>
           </div>
-          <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-6 rounded-2xl shadow-lg border-b-4 border-amber-400 transform hover:-translate-y-1 transition-all">
+          <div class="bg-gradient-to-br from-slate-900 to-slate-950 text-white p-5 rounded-2xl shadow-md border-l-4 border-amber-400 flex flex-col justify-between">
             <p class="text-[11px] text-amber-400 font-extrabold uppercase tracking-wider">Grand Net Profit</p>
-            <p id="g-stat-net" class="text-4xl font-black mt-2 text-white tracking-tight">৳ 0</p>
+            <p id="g-stat-net" class="text-2xl md:text-3xl font-black mt-2 text-white">৳ 0</p>
           </div>
         </div>
 
         <!-- LIFETIME PRODUCT SALES BREAKDOWN TABLE -->
-        <div class="bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden card-shadow">
-          <div class="p-4 bg-slate-900 text-white font-bold text-xs flex justify-between items-center border-b border-slate-800">
-            <span class="text-sm tracking-wide font-extrabold flex items-center gap-2">
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden card-shadow">
+          <div class="p-4 bg-slate-950 text-white font-bold text-xs flex justify-between items-center">
+            <span class="text-xs md:text-sm tracking-wide flex items-center gap-2">
               <i class="fa-solid fa-layer-group text-amber-400"></i> Lifetime Product Sales Breakdown
             </span>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse text-xs">
-              <thead class="bg-slate-50 text-slate-500 font-extrabold border-b border-slate-200 uppercase tracking-wider text-[10px]">
+              <thead class="bg-slate-100/80 text-slate-600 font-extrabold border-b border-slate-200 uppercase tracking-wider">
                 <tr>
-                  <th class="p-4 text-center w-12">SL</th>
-                  <th class="p-4 w-32">Picture</th>
-                  <th class="p-4">Total Sold (Qty)</th>
-                  <th class="p-4 w-32">Total Profit</th>
-                  <th class="p-4">Description</th>
+                  <th class="p-3.5 text-center w-12">SL</th>
+                  <th class="p-3.5 w-28">Picture</th>
+                  <th class="p-3.5">Total Sold (Qty)</th>
+                  <th class="p-3.5 w-32">Total Profit</th>
+                  <th class="p-3.5">Description</th>
                 </tr>
               </thead>
-              <tbody id="tbody-grand-total-sales" class="divide-y divide-slate-50 font-medium">
+              <tbody id="tbody-grand-total-sales" class="divide-y divide-slate-100 font-medium">
                 <!-- Dynamic Content -->
               </tbody>
             </table>
@@ -385,7 +393,670 @@
     </main>
   </div>
 
-  <!-- Main JavaScript Logic -->
-  <script src="app.js" defer></script>
+  <script>
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyBvrbLXqMHsTG2N3eePFFO900luktM4W60",
+      authDomain: "sanveepos.firebaseapp.com",
+      databaseURL: "https://sanveepos-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "sanveepos",
+      storageBucket: "sanveepos.firebasestorage.app",
+      messagingSenderId: "708358963481",
+      appId: "1:708358963481:web:4fd9b8fa5b47093e6ac588",
+      measurementId: "G-HF7TLQFK4Y"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let products = [];
+    let sales = [];
+    let dailyCosts = {};
+    let selectedProdId = null;
+    let undoStack = [];
+
+    // AUTH LOGIN SYSTEM
+    document.getElementById('form-login').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const user = document.getElementById('login-username').value;
+      const pass = document.getElementById('login-password').value;
+
+      if (user === 'admin' && pass === 'project420') {
+        sessionStorage.setItem('isLoggedIn', 'true');
+        checkAuth();
+      } else {
+        document.getElementById('login-error').classList.remove('hidden');
+      }
+    });
+
+    function checkAuth() {
+      const loggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
+      if (loggedIn) {
+        document.getElementById('login-modal').classList.add('hidden');
+        document.getElementById('app-content').classList.remove('hidden');
+        initCloudSync();
+      } else {
+        document.getElementById('login-modal').classList.remove('hidden');
+        document.getElementById('app-content').classList.add('hidden');
+      }
+    }
+
+    function handleLogout() {
+      sessionStorage.removeItem('isLoggedIn');
+      checkAuth();
+    }
+
+    checkAuth();
+
+    function initCloudSync() {
+      db.ref('products').on('value', snap => {
+        const data = snap.val();
+        products = data ? Object.values(data) : [];
+        renderProductSelector();
+        renderDailyView();
+        renderMonthlyView();
+        renderGrandTotalView();
+      });
+
+      db.ref('sales').on('value', snap => {
+        const data = snap.val();
+        sales = data ? Object.values(data) : [];
+        renderDailyView();
+        renderMonthlyView();
+        renderGrandTotalView();
+        if(selectedProdId) {
+          selectProductCard(selectedProdId);
+        }
+      });
+
+      db.ref('dailyCosts').on('value', snap => {
+        dailyCosts = snap.val() || {};
+        const selectedDate = document.getElementById('input-sale-date').value || getTodayString();
+        document.getElementById('input-daily-costing').value = dailyCosts[selectedDate] || 0;
+        
+        const mDateFilter = document.getElementById('input-monthly-date-filter').value;
+        if (mDateFilter) {
+          document.getElementById('input-monthly-cost-edit').value = dailyCosts[mDateFilter] || 0;
+        }
+
+        renderDailyView();
+        renderMonthlyView();
+        renderGrandTotalView();
+      });
+    }
+
+    function getTodayString() {
+      const today = new Date();
+      return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    }
+
+    const todayStr = getTodayString();
+    document.getElementById('input-sale-date').value = todayStr;
+    document.getElementById('input-monthly-filter').value = todayStr.substring(0, 7);
+
+    function switchTab(tab) {
+      const dailyBtn = document.getElementById('tab-daily-btn');
+      const monthlyBtn = document.getElementById('tab-monthly-btn');
+      const totalBtn = document.getElementById('tab-total-btn');
+      const dailySec = document.getElementById('tab-daily');
+      const monthlySec = document.getElementById('tab-monthly');
+      const totalSec = document.getElementById('tab-total');
+
+      dailySec.classList.add('hidden');
+      monthlySec.classList.add('hidden');
+      totalSec.classList.add('hidden');
+      
+      dailyBtn.className = "flex-1 py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex justify-center items-center gap-2 transition-all";
+      monthlyBtn.className = "flex-1 py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex justify-center items-center gap-2 transition-all";
+      totalBtn.className = "flex-1 py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex justify-center items-center gap-2 transition-all";
+
+      if (tab === 'daily') {
+        dailySec.classList.remove('hidden');
+        dailyBtn.className = "flex-1 py-3 text-center border-b-2 border-amber-400 text-amber-400 font-bold flex justify-center items-center gap-2 transition-all";
+      } else if (tab === 'monthly') {
+        monthlySec.classList.remove('hidden');
+        monthlyBtn.className = "flex-1 py-3 text-center border-b-2 border-amber-400 text-amber-400 font-bold flex justify-center items-center gap-2 transition-all";
+      } else if (tab === 'total') {
+        totalSec.classList.remove('hidden');
+        totalBtn.className = "flex-1 py-3 text-center border-b-2 border-amber-400 text-amber-400 font-bold flex justify-center items-center gap-2 transition-all";
+      }
+    }
+
+    function clearProductSelection() {
+      selectedProdId = null;
+      document.getElementById('selected-prod-id').value = '';
+      document.querySelectorAll('.prod-select-card').forEach(c => {
+        c.classList.remove('border-amber-500', 'bg-amber-50/80', 'ring-2', 'ring-amber-400');
+        c.classList.add('border-slate-200', 'bg-white');
+      });
+      document.getElementById('input-sale-qty').value = 1;
+      const btnSubmit = document.getElementById('btn-sale-submit');
+      if (btnSubmit) {
+        btnSubmit.innerHTML = `<i class="fa-solid fa-plus"></i> Add / Update Sale Entry`;
+      }
+    }
+
+    document.addEventListener('click', (e) => {
+      const form = document.getElementById('form-sale-entry');
+      if (selectedProdId && form && !form.contains(e.target)) {
+        clearProductSelection();
+      }
+    });
+
+    function saveUndoSnapshot(date) {
+      const currentSales = sales.filter(s => s.date === date);
+      undoStack.push({
+        date: date,
+        salesSnapshot: JSON.parse(JSON.stringify(currentSales))
+      });
+    }
+
+    function performUndo() {
+      if (undoStack.length === 0) {
+        alert('Undo করার মতো কোনো ডাটা হিস্ট্রি নেই!');
+        return;
+      }
+      const lastState = undoStack.pop();
+      lastState.salesSnapshot.forEach(s => {
+        db.ref('sales/' + s.id).set(s);
+      });
+      renderDailyView();
+      renderMonthlyView();
+      renderGrandTotalView();
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        performUndo();
+      }
+    });
+
+    function saveTodayToMonthly() {
+      const date = document.getElementById('input-sale-date').value || todayStr;
+      const todaysSales = sales.filter(s => s.date === date);
+
+      if (todaysSales.length === 0) {
+        return alert('আজকের ডেটে সেভ করার মতো কোনো সেলের ডাটা নেই!');
+      }
+
+      let updates = {};
+      todaysSales.forEach(s => {
+        updates[`sales/${s.id}/monthlyQty`] = s.qty;
+        updates[`sales/${s.id}/monthlyGrossProfit`] = s.grossProfit;
+      });
+
+      db.ref().update(updates).then(() => {
+        alert(`✅ ${date} তারিখের ডাটা সফলভাবে Monthly Report এ সেভ করা হয়েছে!`);
+        renderMonthlyView();
+        renderGrandTotalView();
+      });
+    }
+
+    function resetDayWiseData() {
+      const targetDate = document.getElementById('input-monthly-date-filter').value;
+      if (!targetDate) {
+        return alert('অনুগ্রহ করে প্রথমে "Specific Date Filter"-এ তারিখ নির্বাচন করুন যেটির ডাটা আপনি ০ (Zero) করতে চান!');
+      }
+
+      if (!confirm(`${targetDate} তারিখের সেভ হওয়া মান্থলি রিপোর্ট ডাটা রিসেট করে ০ (Zero) করতে চান?`)) return;
+
+      const daySales = sales.filter(s => s.date === targetDate);
+      let updates = {};
+      daySales.forEach(s => {
+        updates[`sales/${s.id}/monthlyQty`] = 0;
+        updates[`sales/${s.id}/monthlyGrossProfit`] = 0;
+      });
+
+      db.ref().update(updates).then(() => {
+        alert(`✅ ${targetDate} তারিখের সেভ ডাটা সফলভাবে ০ (Zero) করা হয়েছে!`);
+        renderMonthlyView();
+        renderGrandTotalView();
+      });
+    }
+
+    function clearDateFilter() {
+      document.getElementById('input-monthly-date-filter').value = '';
+      document.getElementById('input-monthly-cost-edit').value = '';
+      renderMonthlyView();
+    }
+
+    function clearTodaySale() {
+      const date = document.getElementById('input-sale-date').value || todayStr;
+      const todaysSales = sales.filter(s => s.date === date);
+      if (todaysSales.length === 0) return alert('আজকের কোনো সেলের ডাটা নেই!');
+
+      if (confirm('আজকের ডেলি সেলের হিসাব 0 করতে চান?')) {
+        saveUndoSnapshot(date);
+        todaysSales.forEach(s => {
+          db.ref('sales/' + s.id).update({
+            qty: 0,
+            grossProfit: 0
+          });
+        });
+      }
+    }
+
+    document.getElementById('form-add-product').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const file = document.getElementById('input-prod-file').files[0];
+      if(!file) return alert('Select image');
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const id = Date.now();
+        const buy = parseFloat(document.getElementById('input-prod-buy').value) || 0;
+        const sell = parseFloat(document.getElementById('input-prod-sell').value) || 0;
+        
+        const newProd = {
+          id: id,
+          image: evt.target.result,
+          buying: buy,
+          selling: sell,
+          grossProfitUnit: sell - buy,
+          desc: document.getElementById('input-prod-desc').value || 'Collection'
+        };
+
+        db.ref('products/' + id).set(newProd);
+        e.target.reset();
+      };
+      reader.readAsDataURL(file);
+    });
+
+    document.getElementById('form-sale-entry').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const qty = parseInt(document.getElementById('input-sale-qty').value);
+      if(isNaN(qty) || qty < 0) return alert('Please enter a valid quantity');
+      const date = document.getElementById('input-sale-date').value || todayStr;
+
+      if (!selectedProdId) {
+        return alert('Please select a product picture first.');
+      }
+
+      const prod = products.find(p => p.id === selectedProdId);
+      const saleId = `${date}_${prod.id}`;
+      const existingSale = sales.find(s => s.id === saleId);
+
+      saveUndoSnapshot(date);
+
+      const gross = (prod.selling - prod.buying) * qty;
+      const prevMonthlyQty = existingSale ? (existingSale.monthlyQty !== undefined ? existingSale.monthlyQty : 0) : 0;
+      const prevMonthlyGross = existingSale ? (existingSale.monthlyGrossProfit !== undefined ? existingSale.monthlyGrossProfit : 0) : 0;
+
+      const saleData = {
+        id: saleId,
+        productId: prod.id,
+        image: prod.image,
+        buying: prod.buying,
+        selling: prod.selling,
+        desc: prod.desc,
+        qty: qty,
+        grossProfit: gross,
+        monthlyQty: prevMonthlyQty,
+        monthlyGrossProfit: prevMonthlyGross,
+        date: date
+      };
+
+      db.ref('sales/' + saleId).set(saleData);
+    });
+
+    function updateSaleQty(prodId, newQtyStr) {
+      const qty = parseInt(newQtyStr);
+      if (isNaN(qty) || qty < 0) return;
+
+      const date = document.getElementById('input-sale-date').value || todayStr;
+      const prod = products.find(p => p.id === prodId);
+      if(!prod) return;
+
+      const saleId = `${date}_${prod.id}`;
+      const existingSale = sales.find(s => s.id === saleId);
+
+      saveUndoSnapshot(date);
+
+      const gross = (prod.selling - prod.buying) * qty;
+      const prevMonthlyQty = existingSale ? (existingSale.monthlyQty !== undefined ? existingSale.monthlyQty : 0) : 0;
+      const prevMonthlyGross = existingSale ? (existingSale.monthlyGrossProfit !== undefined ? existingSale.monthlyGrossProfit : 0) : 0;
+
+      const saleData = {
+        id: saleId,
+        productId: prod.id,
+        image: prod.image,
+        buying: prod.buying,
+        selling: prod.selling,
+        desc: prod.desc,
+        qty: qty,
+        grossProfit: gross,
+        monthlyQty: prevMonthlyQty,
+        monthlyGrossProfit: prevMonthlyGross,
+        date: date
+      };
+
+      db.ref('sales/' + saleId).set(saleData);
+    }
+
+    function selectProductCard(id) {
+      selectedProdId = id;
+      document.getElementById('selected-prod-id').value = id;
+      
+      document.querySelectorAll('.prod-select-card').forEach(c => {
+        c.classList.remove('border-amber-500', 'bg-amber-50/80', 'ring-2', 'ring-amber-400');
+        c.classList.add('border-slate-200', 'bg-white');
+      });
+      
+      const card = document.getElementById(`prod-card-${id}`);
+      if(card) {
+        card.classList.remove('border-slate-200', 'bg-white');
+        card.classList.add('border-amber-500', 'bg-amber-50/80', 'ring-2', 'ring-amber-400');
+      }
+
+      const date = document.getElementById('input-sale-date').value || todayStr;
+      const existingSale = sales.find(s => s.date === date && s.productId === id);
+      const qtyInput = document.getElementById('input-sale-qty');
+      const btnSubmit = document.getElementById('btn-sale-submit');
+
+      if(existingSale) {
+        qtyInput.value = existingSale.qty;
+        btnSubmit.innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Update Sale Qty (${existingSale.qty} Pcs)`;
+      } else {
+        qtyInput.value = 1;
+        btnSubmit.innerHTML = `<i class="fa-solid fa-plus"></i> Add / Update Sale Entry`;
+      }
+    }
+
+    function deleteProduct(e, id) {
+      e.stopPropagation();
+      if(!confirm('এই প্রোডাক্টটি ক্যাটালগ এবং সকল সেলস হিস্ট্রি থেকে সম্পূর্ণ ডিলিট করে দিতে চান?')) return;
+      
+      // Delete from Firebase products
+      db.ref('products/' + id).remove();
+
+      // Delete associated sales from Firebase
+      sales.forEach(s => {
+        if (s.productId === id || (s.id && s.id.endsWith('_' + id))) {
+          db.ref('sales/' + s.id).remove();
+        }
+      });
+
+      if(selectedProdId === id) {
+        clearProductSelection();
+      }
+    }
+
+    function renderProductSelector() {
+      const grid = document.getElementById('product-grid-selector');
+      const date = document.getElementById('input-sale-date').value || todayStr;
+
+      if(products.length === 0) {
+        grid.innerHTML = `<p class="col-span-full text-[11px] text-slate-400 text-center py-4">No products uploaded yet.</p>`;
+        return;
+      }
+
+      grid.innerHTML = products.map(p => {
+        const todayQty = sales
+          .filter(s => s.date === date && s.productId === p.id)
+          .reduce((sum, item) => sum + item.qty, 0);
+
+        const isSelected = selectedProdId === p.id;
+        const selectedClass = isSelected ? 'border-amber-500 bg-amber-50/80 ring-2 ring-amber-400' : 'border-slate-200 bg-white';
+
+        return `
+          <div onclick="selectProductCard(${p.id})" id="prod-card-${p.id}" class="prod-select-card relative cursor-pointer border rounded-xl p-1.5 flex flex-col items-center transition-all duration-150 hover:border-amber-400 shadow-2xs ${selectedClass}">
+            <img src="${p.image}" class="img-selector object-cover rounded-lg">
+            <span class="text-[10px] font-extrabold text-slate-800 mt-1">৳${p.selling}</span>
+            ${todayQty > 0 ? `<span class="absolute top-1 right-1 bg-amber-400 text-slate-950 font-black text-[9px] px-1.5 py-0.5 rounded-full shadow-sm">${todayQty}</span>` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderDailyView() {
+      const date = document.getElementById('input-sale-date').value || todayStr;
+      document.getElementById('summary-header-date').innerText = `Date: ${date}`;
+
+      const tbody = document.getElementById('tbody-daily-sales');
+      if (products.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400 text-xs">No products added yet.</td></tr>`;
+      } else {
+        let totalQty = 0;
+        let totalGrossProfit = 0;
+
+        tbody.innerHTML = products.map((p, idx) => {
+          const s = sales.find(item => item.date === date && item.productId === p.id);
+          const qty = s ? s.qty : 0;
+          const grossProfit = s ? s.grossProfit : 0;
+
+          totalQty += qty;
+          totalGrossProfit += grossProfit;
+
+          return `
+            <tr class="hover:bg-slate-50/80 transition border-b border-slate-100">
+              <td class="p-3.5 text-center font-bold text-slate-400">${idx + 1}</td>
+              <td class="p-3.5"><img src="${p.image}" class="img-compact shadow-2xs"></td>
+              <td class="p-3.5">
+                <div class="flex items-center gap-2 mb-1.5">
+                  <span class="text-xs font-bold text-slate-700">Qty:</span>
+                  <input type="number" min="0" value="${qty}" onchange="updateSaleQty(${p.id}, this.value)" class="w-16 border border-slate-200 rounded-lg p-1 text-xs font-black text-slate-900 bg-amber-50/60 text-center outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+                  <span class="text-xs font-bold text-slate-500">Pcs</span>
+                </div>
+                <div class="text-[11px] font-semibold text-slate-600">
+                  <span class="bg-amber-100/80 text-amber-900 px-2 py-0.5 rounded-md font-extrabold">Sell: ৳${p.selling}</span>
+                  <span class="ml-1.5 text-slate-500">Buy: ৳${p.buying}</span>
+                </div>
+              </td>
+              <td class="p-3.5 font-extrabold text-xs text-slate-900">৳ ${grossProfit}</td>
+              <td class="p-3.5 text-xs text-slate-600 leading-relaxed">${p.desc || ''}</td>
+              <td class="p-3.5 text-center no-print">
+                <button onclick="deleteProduct(event, ${p.id})" class="text-rose-400 hover:text-rose-600 p-2 transition rounded-xl hover:bg-rose-50" title="Delete Product"><i class="fa-solid fa-trash-can"></i></button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        const costing = parseFloat(document.getElementById('input-daily-costing').value) || 0;
+        const perProdCost = totalQty > 0 ? (costing / totalQty).toFixed(2) : 0;
+        const totalProfit = totalGrossProfit - costing;
+
+        document.getElementById('summary-qty').innerText = `${totalQty} Pcs`;
+        document.getElementById('summary-gross-profit').innerText = `৳ ${totalGrossProfit}`;
+        document.getElementById('summary-costing').innerText = `৳ ${costing}`;
+        document.getElementById('summary-per-product-cost').innerText = `৳ ${perProdCost}`;
+        document.getElementById('summary-total-profit').innerText = `৳ ${totalProfit}`;
+      }
+
+      filterDailyTableByPrice();
+    }
+
+    function renderMonthlyView() {
+      const monthFilter = document.getElementById('input-monthly-filter').value;
+      const dateFilter = document.getElementById('input-monthly-date-filter').value;
+
+      let filteredSales = sales.filter(s => s.date && s.date.startsWith(monthFilter));
+      if (dateFilter) {
+        filteredSales = filteredSales.filter(s => s.date === dateFilter);
+      }
+
+      const tbody = document.getElementById('tbody-monthly-sales');
+      if (filteredSales.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-400 text-xs">No monthly records found for selected filter.</td></tr>`;
+      } else {
+        tbody.innerHTML = filteredSales.map((s, idx) => {
+          const pId = s.productId || (s.id ? s.id.split('_')[1] : null);
+          return `
+            <tr class="hover:bg-slate-50/80 transition border-b border-slate-100">
+              <td class="p-3.5 text-center font-bold text-slate-400">${idx + 1}</td>
+              <td class="p-3.5 font-extrabold text-slate-700">${s.date}</td>
+              <td class="p-3.5"><img src="${s.image}" class="img-compact shadow-2xs"></td>
+              <td class="p-3.5">
+                <div class="text-xs font-black text-slate-900">Qty: ${s.monthlyQty !== undefined ? s.monthlyQty : s.qty} Pcs</div>
+                <div class="text-[11px] text-slate-500 mt-0.5">Sell: ৳${s.selling} | Buy: ৳${s.buying}</div>
+              </td>
+              <td class="p-3.5 font-black text-xs text-indigo-600">৳ ${s.monthlyGrossProfit !== undefined ? s.monthlyGrossProfit : s.grossProfit}</td>
+              <td class="p-3.5 text-xs text-slate-600 leading-relaxed">${s.desc || ''}</td>
+              <td class="p-3.5 text-center no-print">
+                <button onclick="deleteProduct(event, ${pId})" class="text-rose-400 hover:text-rose-600 p-2 transition rounded-xl hover:bg-rose-50" title="Delete Product Completely">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      let totalMonthlyQty = 0;
+      let totalMonthlyGross = 0;
+      filteredSales.forEach(s => {
+        totalMonthlyQty += (s.monthlyQty !== undefined ? s.monthlyQty : s.qty);
+        totalMonthlyGross += (s.monthlyGrossProfit !== undefined ? s.monthlyGrossProfit : s.grossProfit);
+      });
+
+      let totalMonthlyCosting = 0;
+      if (dateFilter) {
+        totalMonthlyCosting = dailyCosts[dateFilter] || 0;
+      } else {
+        Object.keys(dailyCosts).forEach(d => {
+          if (d.startsWith(monthFilter)) {
+            totalMonthlyCosting += parseFloat(dailyCosts[d]) || 0;
+          }
+        });
+      }
+
+      document.getElementById('m-stat-qty').innerText = `${totalMonthlyQty} Pcs`;
+      document.getElementById('m-stat-gross').innerText = `৳ ${totalMonthlyGross}`;
+      document.getElementById('m-stat-costing').innerText = `৳ ${totalMonthlyCosting}`;
+      document.getElementById('m-stat-net').innerText = `৳ ${totalMonthlyGross - totalMonthlyCosting}`;
+    }
+
+    // RENDER GRAND TOTAL & LIFETIME BREAKDOWN TABLE (WITH VALID PRODUCTS FILTER FIX)
+    function renderGrandTotalView() {
+      let grandQty = 0;
+      let grandGross = 0;
+      let productStats = {};
+
+      const validProductIds = new Set(products.map(p => String(p.id)));
+
+      products.forEach(p => {
+        productStats[p.id] = {
+          id: p.id,
+          image: p.image,
+          selling: p.selling,
+          buying: p.buying,
+          desc: p.desc,
+          lifetimeQty: 0,
+          lifetimeGross: 0
+        };
+      });
+
+      sales.forEach(s => {
+        let pId = String(s.productId || (s.id ? s.id.split('_')[1] : ''));
+        
+        if (validProductIds.has(pId)) {
+          let q = (s.monthlyQty !== undefined ? s.monthlyQty : s.qty) || 0;
+          let g = (s.monthlyGrossProfit !== undefined ? s.monthlyGrossProfit : s.grossProfit) || 0;
+          
+          grandQty += q;
+          grandGross += g;
+
+          if (productStats[pId]) {
+            productStats[pId].lifetimeQty += q;
+            productStats[pId].lifetimeGross += g;
+          }
+        }
+      });
+
+      let grandCosting = 0;
+      Object.values(dailyCosts).forEach(c => {
+        grandCosting += parseFloat(c) || 0;
+      });
+
+      document.getElementById('g-stat-qty').innerText = `${grandQty} Pcs`;
+      document.getElementById('g-stat-gross').innerText = `৳ ${grandGross}`;
+      document.getElementById('g-stat-costing').innerText = `৳ ${grandCosting}`;
+      document.getElementById('g-stat-net').innerText = `৳ ${grandGross - grandCosting}`;
+
+      const tbody = document.getElementById('tbody-grand-total-sales');
+      if (!tbody) return;
+
+      let soldProducts = Object.values(productStats).filter(p => p.lifetimeQty > 0);
+      soldProducts.sort((a, b) => b.lifetimeQty - a.lifetimeQty);
+
+      if (soldProducts.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400 text-xs">No lifetime sales records found.</td></tr>`;
+      } else {
+        tbody.innerHTML = soldProducts.map((p, idx) => `
+          <tr class="hover:bg-slate-50/80 transition border-b border-slate-100">
+            <td class="p-3.5 text-center font-bold text-slate-400">${idx + 1}</td>
+            <td class="p-3.5"><img src="${p.image}" class="img-compact shadow-2xs"></td>
+            <td class="p-3.5">
+              <div class="text-sm font-black text-amber-600">Total Sold: ${p.lifetimeQty} Pcs</div>
+              <div class="text-[11px] text-slate-500 mt-0.5">Sell: ৳${p.selling} | Buy: ৳${p.buying}</div>
+            </td>
+            <td class="p-3.5 font-black text-sm text-emerald-600">৳ ${p.lifetimeGross}</td>
+            <td class="p-3.5 text-xs text-slate-600">${p.desc || ''}</td>
+          </tr>
+        `).join('');
+      }
+    }
+
+    function filterDailyTableByPrice() {
+      const searchValue = document.getElementById('input-price-search').value.trim();
+      const tbody = document.getElementById('tbody-daily-sales');
+      if (!tbody) return;
+
+      const rows = tbody.querySelectorAll('tr');
+      rows.forEach(row => {
+        if (!searchValue) {
+          row.style.display = '';
+          return;
+        }
+
+        const rowText = row.innerText || row.textContent;
+        if (rowText.includes(`Sell: ৳${searchValue}`) || rowText.includes(`Sell:৳${searchValue}`) || rowText.includes(`৳${searchValue}`) || rowText.includes(searchValue)) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    }
+
+    function clearPriceSearch() {
+      const input = document.getElementById('input-price-search');
+      if (input) {
+        input.value = '';
+        filterDailyTableByPrice();
+      }
+    }
+
+    // Event listeners
+    document.getElementById('input-sale-date').addEventListener('change', () => {
+      const selectedDate = document.getElementById('input-sale-date').value;
+      document.getElementById('input-daily-costing').value = dailyCosts[selectedDate] || 0;
+      renderProductSelector();
+      renderDailyView();
+    });
+
+    document.getElementById('input-daily-costing').addEventListener('input', (e) => {
+      const selectedDate = document.getElementById('input-sale-date').value || todayStr;
+      const val = parseFloat(e.target.value) || 0;
+      db.ref('dailyCosts/' + selectedDate).set(val);
+    });
+
+    document.getElementById('input-monthly-filter').addEventListener('change', renderMonthlyView);
+    document.getElementById('input-monthly-date-filter').addEventListener('change', (e) => {
+      const dateVal = e.target.value;
+      if (dateVal) {
+        document.getElementById('input-monthly-cost-edit').value = dailyCosts[dateVal] || 0;
+      } else {
+        document.getElementById('input-monthly-cost-edit').value = '';
+      }
+      renderMonthlyView();
+    });
+
+    document.getElementById('input-monthly-cost-edit').addEventListener('input', (e) => {
+      const targetDate = document.getElementById('input-monthly-date-filter').value;
+      if (!targetDate) return;
+      const val = parseFloat(e.target.value) || 0;
+      db.ref('dailyCosts/' + targetDate).set(val);
+    });
+  </script>
 </body>
 </html>
