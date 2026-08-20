@@ -60,6 +60,7 @@ function initCloudSync() {
     renderDailyView();
     renderMonthlyView();
     renderGrandTotalView();
+    generateRangeDailyReports();
   });
 
   db.ref('sales').on('value', snap => {
@@ -68,6 +69,7 @@ function initCloudSync() {
     renderDailyView();
     renderMonthlyView();
     renderGrandTotalView();
+    generateRangeDailyReports();
     if(selectedProdId) {
       selectProductCard(selectedProdId);
     }
@@ -86,6 +88,7 @@ function initCloudSync() {
     renderDailyView();
     renderMonthlyView();
     renderGrandTotalView();
+    generateRangeDailyReports();
   });
 }
 
@@ -94,44 +97,85 @@ function getTodayString() {
   return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 }
 
+function formatDateString(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 const todayStr = getTodayString();
 document.getElementById('input-sale-date').value = todayStr;
 document.getElementById('input-monthly-filter').value = todayStr.substring(0, 7);
 
+// Initialize Range Report dates: Default 19th of last month to yesterday
+function initDefaultReportRange() {
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  let prevMonthYear = now.getFullYear();
+  let prevMonth = now.getMonth() - 1;
+  if (prevMonth < 0) {
+    prevMonth = 11;
+    prevMonthYear--;
+  }
+  const lastMonth19 = new Date(prevMonthYear, prevMonth, 19);
+
+  const fromInput = document.getElementById('input-range-from');
+  const toInput = document.getElementById('input-range-to');
+  if (fromInput && toInput) {
+    fromInput.value = formatDateString(lastMonth19);
+    toInput.value = formatDateString(yesterday);
+  }
+}
+initDefaultReportRange();
+
 function switchTab(tab) {
   const dailyBtn = document.getElementById('tab-daily-btn');
   const monthlyBtn = document.getElementById('tab-monthly-btn');
+  const reportsBtn = document.getElementById('tab-reports-btn');
   const totalBtn = document.getElementById('tab-total-btn');
+
   const dailySec = document.getElementById('tab-daily');
   const monthlySec = document.getElementById('tab-monthly');
+  const reportsSec = document.getElementById('tab-reports');
   const totalSec = document.getElementById('tab-total');
 
   dailySec.classList.add('hidden');
   monthlySec.classList.add('hidden');
+  reportsSec.classList.add('hidden');
   totalSec.classList.add('hidden');
   
   // Re-trigger animation
   dailySec.classList.remove('fade-in');
   monthlySec.classList.remove('fade-in');
+  reportsSec.classList.remove('fade-in');
   totalSec.classList.remove('fade-in');
   void dailySec.offsetWidth; // trigger reflow
   
-  dailyBtn.className = "flex-1 py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30 flex justify-center items-center gap-2 transition-colors";
-  monthlyBtn.className = "flex-1 py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30 flex justify-center items-center gap-2 transition-colors";
-  totalBtn.className = "flex-1 py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30 flex justify-center items-center gap-2 transition-colors";
+  const baseBtnClass = "flex-1 py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30 flex justify-center items-center gap-2 transition-colors whitespace-nowrap px-3";
+  const activeBtnClass = "flex-1 py-3 text-center border-b-2 border-amber-500 text-amber-400 bg-slate-900/60 font-bold flex justify-center items-center gap-2 transition-colors whitespace-nowrap px-3";
+
+  dailyBtn.className = baseBtnClass;
+  monthlyBtn.className = baseBtnClass;
+  reportsBtn.className = baseBtnClass;
+  totalBtn.className = baseBtnClass;
 
   if (tab === 'daily') {
     dailySec.classList.remove('hidden');
     dailySec.classList.add('fade-in');
-    dailyBtn.className = "flex-1 py-3 text-center border-b-2 border-amber-500 text-amber-400 bg-slate-900/60 font-bold flex justify-center items-center gap-2 transition-colors";
+    dailyBtn.className = activeBtnClass;
   } else if (tab === 'monthly') {
     monthlySec.classList.remove('hidden');
     monthlySec.classList.add('fade-in');
-    monthlyBtn.className = "flex-1 py-3 text-center border-b-2 border-amber-500 text-amber-400 bg-slate-900/60 font-bold flex justify-center items-center gap-2 transition-colors";
+    monthlyBtn.className = activeBtnClass;
+  } else if (tab === 'reports') {
+    reportsSec.classList.remove('hidden');
+    reportsSec.classList.add('fade-in');
+    reportsBtn.className = activeBtnClass;
+    generateRangeDailyReports();
   } else if (tab === 'total') {
     totalSec.classList.remove('hidden');
     totalSec.classList.add('fade-in');
-    totalBtn.className = "flex-1 py-3 text-center border-b-2 border-amber-500 text-amber-400 bg-slate-900/60 font-bold flex justify-center items-center gap-2 transition-colors";
+    totalBtn.className = activeBtnClass;
   }
 }
 
@@ -167,7 +211,7 @@ function saveUndoSnapshot(date) {
 
 function performUndo() {
   if (undoStack.length === 0) {
-    alert('Undo করার মতো কোনো ডাটা হিস্ট্রি নেই!');
+    alert('No history available to undo!');
     return;
   }
   const lastState = undoStack.pop();
@@ -177,22 +221,15 @@ function performUndo() {
   renderDailyView();
   renderMonthlyView();
   renderGrandTotalView();
+  generateRangeDailyReports();
 }
-
-document.addEventListener('click', (e) => {
-  const form = document.getElementById('form-sale-entry');
-  const editModal = document.getElementById('edit-product-modal');
-  if (selectedProdId && form && !form.contains(e.target) && (!editModal || !editModal.contains(e.target))) {
-    clearProductSelection();
-  }
-});
 
 function saveTodayToMonthly() {
   const date = document.getElementById('input-sale-date').value || todayStr;
   const todaysSales = sales.filter(s => s.date === date);
 
   if (todaysSales.length === 0) {
-    return alert('আজকের ডেটে সেভ করার মতো কোনো সেলের ডাটা নেই!');
+    return alert('No sales data to save for selected date!');
   }
 
   let updates = {};
@@ -202,19 +239,20 @@ function saveTodayToMonthly() {
   });
 
   db.ref().update(updates).then(() => {
-    alert(`✅ ${date} তারিখের ডাটা সফলভাবে Monthly Report এ সেভ করা হয়েছে!`);
+    alert(`✅ Sales data for ${date} successfully saved to Monthly Report!`);
     renderMonthlyView();
     renderGrandTotalView();
+    generateRangeDailyReports();
   });
 }
 
 function resetDayWiseData() {
   const targetDate = document.getElementById('input-monthly-date-filter').value;
   if (!targetDate) {
-    return alert('অনুগ্রহ করে প্রথমে "Specific Date Filter"-এ তারিখ নির্বাচন করুন যেটির ডাটা আপনি ০ (Zero) করতে চান!');
+    return alert('Please select a date in "Specific Date Filter" first to reset its data to 0!');
   }
 
-  if (!confirm(`${targetDate} তারিখের সেভ হওয়া মান্থলি রিপোর্ট ডাটা রিসেট করে ০ (Zero) করতে চান?`)) return;
+  if (!confirm(`Reset saved monthly report data for ${targetDate} to 0?`)) return;
 
   const daySales = sales.filter(s => s.date === targetDate);
   let updates = {};
@@ -224,9 +262,10 @@ function resetDayWiseData() {
   });
 
   db.ref().update(updates).then(() => {
-    alert(`✅ ${targetDate} তারিখের সেভ ডাটা সফলভাবে ০ (Zero) করা হয়েছে!`);
+    alert(`✅ Saved data for ${targetDate} successfully reset to 0!`);
     renderMonthlyView();
     renderGrandTotalView();
+    generateRangeDailyReports();
   });
 }
 
@@ -239,9 +278,9 @@ function clearDateFilter() {
 function clearTodaySale() {
   const date = document.getElementById('input-sale-date').value || todayStr;
   const todaysSales = sales.filter(s => s.date === date);
-  if (todaysSales.length === 0) return alert('আজকের কোনো সেলের ডাটা নেই!');
+  if (todaysSales.length === 0) return alert('No sales recorded for this date!');
 
-  if (confirm('আজকের ডেলি সেলের হিসাব 0 করতে চান?')) {
+  if (confirm('Reset daily sales for this date to 0?')) {
     saveUndoSnapshot(date);
     todaysSales.forEach(s => {
       db.ref('sales/' + s.id).update({
@@ -255,7 +294,7 @@ function clearTodaySale() {
 document.getElementById('form-add-product').addEventListener('submit', (e) => {
   e.preventDefault();
   const file = document.getElementById('input-prod-file').files[0];
-  if(!file) return alert('Select image');
+  if(!file) return alert('Please select an image file');
 
   const reader = new FileReader();
   reader.onload = function(evt) {
@@ -368,9 +407,10 @@ function selectProductCard(id) {
     btnSubmit.innerHTML = `<i class="fa-solid fa-plus"></i> Add / Update Sale Entry`;
   }
 }
+
 function deleteProduct(e, id) {
   if (e) e.stopPropagation();
-  if(!confirm('এই প্রোডাক্টটি ক্যাটালগ এবং সকল সেলস হিস্ট্রি থেকে সম্পূর্ণ ডিলিট করে দিতে চান?')) return;
+  if(!confirm('Permanently delete this product from catalog and sales history?')) return;
   
   db.ref('products/' + id).remove();
 
@@ -575,6 +615,163 @@ function renderMonthlyView() {
   document.getElementById('m-stat-gross').innerText = `৳ ${totalMonthlyGross}`;
   document.getElementById('m-stat-costing').innerText = `৳ ${totalMonthlyCosting}`;
   document.getElementById('m-stat-net').innerText = `৳ ${totalMonthlyGross - totalMonthlyCosting}`;
+}
+
+// TAB 4: MULTI-DATE RANGE INDIVIDUAL DAILY REPORTS
+function generateRangeDailyReports() {
+  const fromStr = document.getElementById('input-range-from') ? document.getElementById('input-range-from').value : '';
+  const toStr = document.getElementById('input-range-to') ? document.getElementById('input-range-to').value : '';
+  const showFilter = document.getElementById('select-range-filter') ? document.getElementById('select-range-filter').value : 'sales_only';
+  const container = document.getElementById('range-reports-container');
+
+  if (!container || !fromStr || !toStr) return;
+
+  const startDate = new Date(fromStr + 'T00:00:00');
+  const endDate = new Date(toStr + 'T00:00:00');
+
+  if (startDate > endDate) {
+    container.innerHTML = `<p class="col-span-full text-center text-rose-500 font-bold py-8">From Date must be earlier than or equal to To Date!</p>`;
+    return;
+  }
+
+  const summaryDatesEl = document.getElementById('range-summary-dates');
+  if (summaryDatesEl) {
+    summaryDatesEl.innerText = `${fromStr} to ${toStr}`;
+  }
+
+  let totalDaysCount = 0;
+  let rangeTotalQty = 0;
+  let rangeTotalGross = 0;
+  let rangeTotalCost = 0;
+
+  let dayCardsHtml = [];
+
+  // Generate list of dates from startDate to endDate
+  let cur = new Date(startDate);
+  let datesList = [];
+  while (cur <= endDate) {
+    datesList.push(formatDateString(cur));
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  datesList.forEach(dStr => {
+    const dateObj = new Date(dStr + 'T00:00:00');
+    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+    
+    // Find all sales recorded for this day
+    const daySales = sales.filter(s => s.date === dStr);
+    
+    let dayQty = 0;
+    let dayGrossProfit = 0;
+    let itemsList = [];
+
+    products.forEach(p => {
+      const s = daySales.find(item => String(item.productId) === String(p.id) || (item.id && item.id.endsWith('_' + p.id)));
+      const q = s ? (s.monthlyQty !== undefined && s.monthlyQty > 0 ? s.monthlyQty : (s.qty || 0)) : 0;
+      const g = s ? (s.monthlyGrossProfit !== undefined && s.monthlyGrossProfit > 0 ? s.monthlyGrossProfit : (s.grossProfit || 0)) : 0;
+
+      if (q > 0) {
+        const itemProfit = g > 0 ? g : (p.selling - p.buying) * q;
+        dayQty += q;
+        dayGrossProfit += itemProfit;
+        itemsList.push({
+          product: p,
+          qty: q,
+          gross: itemProfit
+        });
+      }
+    });
+
+    const dayCost = parseFloat(dailyCosts[dStr]) || 0;
+    const perProdCost = dayQty > 0 ? (dayCost / dayQty).toFixed(2) : 0;
+    const dayNetProfit = dayGrossProfit - dayCost;
+
+    if (showFilter === 'sales_only' && dayQty === 0 && dayCost === 0) {
+      return; // Skip days with no activity
+    }
+
+    totalDaysCount++;
+    rangeTotalQty += dayQty;
+    rangeTotalGross += dayGrossProfit;
+    rangeTotalCost += dayCost;
+
+    const itemsTableRows = itemsList.length > 0 ? itemsList.map((item, idx) => `
+      <tr class="border-b border-slate-100 text-[10px]">
+        <td class="p-1 text-center text-slate-400 font-bold">${idx + 1}</td>
+        <td class="p-1"><img src="${item.product.image}" class="report-table-img shadow-xs"></td>
+        <td class="p-1">
+          <div class="font-extrabold text-slate-800">৳${item.product.selling} <span class="text-[9px] text-slate-400 font-normal">/ ৳${item.product.buying}</span></div>
+          <div class="text-[9px] text-slate-500 truncate max-w-[110px]">${item.product.desc || ''}</div>
+        </td>
+        <td class="p-1 text-center font-black text-amber-700 bg-amber-50/50 rounded">${item.qty} Pcs</td>
+        <td class="p-1 text-right font-black text-emerald-700">৳${item.gross}</td>
+      </tr>
+    `).join('') : `
+      <tr><td colspan="5" class="p-3 text-center text-slate-400 text-[10px] font-semibold">No sales entries recorded for this date.</td></tr>
+    `;
+
+    dayCardsHtml.push(`
+      <div class="daily-report-card border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-xs">
+        <div class="bg-slate-900 text-white px-3 py-2 flex justify-between items-center border-b border-slate-800">
+          <div class="flex items-center gap-1.5 font-extrabold text-xs tracking-wide">
+            <span class="bg-amber-500 text-slate-950 px-1.5 py-0.5 rounded text-[10px] font-black">SANVEE'S</span>
+            <span>Date: ${dStr}</span>
+            <span class="text-slate-400 text-[10px] font-normal">(${dayName})</span>
+          </div>
+          <div class="text-[11px] text-emerald-400 font-black">Net: ৳${dayNetProfit}</div>
+        </div>
+
+        <div class="grid grid-cols-4 bg-slate-50 border-b border-slate-200 text-center divide-x divide-slate-200 text-[10px] py-1.5 font-bold">
+          <div><span class="text-slate-400 block text-[9px] uppercase">Qty</span><span class="text-slate-900 font-black">${dayQty} Pcs</span></div>
+          <div><span class="text-slate-400 block text-[9px] uppercase">Profit</span><span class="text-slate-900 font-black">৳${dayGrossProfit}</span></div>
+          <div><span class="text-slate-400 block text-[9px] uppercase">Costing</span><span class="text-rose-600 font-black">৳${dayCost}</span></div>
+          <div><span class="text-slate-400 block text-[9px] uppercase">Net Profit</span><span class="text-emerald-700 font-black">৳${dayNetProfit}</span></div>
+        </div>
+
+        <div class="p-2 flex-1 overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead class="bg-slate-100/70 text-slate-500 text-[9px] uppercase font-extrabold border-b border-slate-200">
+              <tr>
+                <th class="p-1 text-center w-6">#</th>
+                <th class="p-1 w-10">Pic</th>
+                <th class="p-1">Price</th>
+                <th class="p-1 text-center">Qty</th>
+                <th class="p-1 text-right">Profit</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsTableRows}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `);
+  });
+
+  const elDays = document.getElementById('range-total-days');
+  const elQty = document.getElementById('range-total-qty');
+  const elGross = document.getElementById('range-total-gross');
+  const elCost = document.getElementById('range-total-cost');
+  const elNet = document.getElementById('range-total-net');
+
+  if (elDays) elDays.innerText = `${totalDaysCount} Days`;
+  if (elQty) elQty.innerText = `${rangeTotalQty} Pcs`;
+  if (elGross) elGross.innerText = `৳ ${rangeTotalGross}`;
+  if (elCost) elCost.innerText = `৳ ${rangeTotalCost}`;
+  if (elNet) elNet.innerText = `৳ ${rangeTotalGross - rangeTotalCost}`;
+
+  if (dayCardsHtml.length === 0) {
+    container.innerHTML = `<div class="col-span-full p-8 text-center bg-white rounded-3xl border border-slate-100 text-slate-400 text-xs font-semibold">No sales records found for the selected date range.</div>`;
+  } else {
+    container.innerHTML = dayCardsHtml.join('');
+  }
+}
+
+function printRangeReports() {
+  switchTab('reports');
+  setTimeout(() => {
+    window.print();
+  }, 200);
 }
 
 function renderGrandTotalView() {

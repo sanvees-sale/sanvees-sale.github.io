@@ -31,7 +31,7 @@
 }
 
 /* =========================================
-   Original Application Styles
+   Application & Print Styles
    ========================================= */
 @media print {
   .no-print {
@@ -40,6 +40,8 @@
   body {
     background-color: #ffffff !important;
     color: #000000 !important;
+    font-size: 11px !important;
+    padding-bottom: 0 !important;
   }
   .print-container {
     width: 100% !important;
@@ -50,6 +52,30 @@
   .card-shadow {
     box-shadow: none !important;
     border: 1px solid #000 !important;
+  }
+  
+  /* Range Daily Report Print Layout - 2 columns compact per A4 */
+  .daily-report-card {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    border: 1.5px solid #1e293b !important;
+    box-shadow: none !important;
+    margin-bottom: 10px !important;
+    background: #ffffff !important;
+  }
+
+  #range-reports-container {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  table {
+    font-size: 10px !important;
+  }
+  
+  th, td {
+    padding: 3px 6px !important;
   }
 }
 
@@ -66,4 +92,28 @@
   height: 85px;
   object-fit: cover;
   border-radius: 6px;
+}
+
+.report-table-img {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+}
+
+.daily-report-card {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+}
+
+.daily-report-card:hover {
+  box-shadow: 0 6px 16px -2px rgba(0, 0, 0, 0.08);
+  border-color: #cbd5e1;
 }
