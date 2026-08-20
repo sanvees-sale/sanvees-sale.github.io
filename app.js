@@ -73,7 +73,12 @@ function getRecordGross(s, prod) {
 
 // ROLE MANAGEMENT
 function getCurrentUserRole() {
-  return sessionStorage.getItem('userRole') || 'staff';
+  const storedRole = sessionStorage.getItem('userRole');
+  if (storedRole) return storedRole;
+  if (sessionStorage.getItem('isLoggedIn') === 'true') {
+    return 'admin';
+  }
+  return 'staff';
 }
 
 function applyRolePermissions() {
@@ -141,13 +146,14 @@ function handleLogout() {
 
 checkAuth();
 
-// CHANGE PASSWORD MODAL & HANDLERS (ADMIN ONLY)
+// CHANGE PASSWORD MODAL & HANDLERS
 function openPasswordModal() {
-  if (getCurrentUserRole() !== 'admin') return;
   const modal = document.getElementById('password-modal');
   if (modal) {
-    document.getElementById('input-new-admin-pass').value = authCredentials.admin;
-    document.getElementById('input-new-staff-pass').value = authCredentials.staff;
+    const adminInput = document.getElementById('input-new-admin-pass');
+    const staffInput = document.getElementById('input-new-staff-pass');
+    if (adminInput) adminInput.value = authCredentials.admin || 'project420';
+    if (staffInput) staffInput.value = authCredentials.staff || 'staff123';
     modal.classList.remove('hidden');
     modal.classList.add('flex');
   }
@@ -159,6 +165,37 @@ function closePasswordModal() {
     modal.classList.add('hidden');
     modal.classList.remove('flex');
   }
+}
+
+// Attach globally
+window.openPasswordModal = openPasswordModal;
+window.closePasswordModal = closePasswordModal;
+window.switchTab = switchTab;
+window.handleLogout = handleLogout;
+window.openEditModal = openEditModal;
+window.closeEditModal = closeEditModal;
+
+const btnOpenPass = document.getElementById('btn-open-passwords');
+if (btnOpenPass) {
+  btnOpenPass.addEventListener('click', openPasswordModal);
+}
+
+const passModalEl = document.getElementById('password-modal');
+if (passModalEl) {
+  passModalEl.addEventListener('click', (e) => {
+    if (e.target === passModalEl) {
+      closePasswordModal();
+    }
+  });
+}
+
+const editModalEl = document.getElementById('edit-product-modal');
+if (editModalEl) {
+  editModalEl.addEventListener('click', (e) => {
+    if (e.target === editModalEl) {
+      closeEditModal();
+    }
+  });
 }
 
 const formChangePass = document.getElementById('form-change-password');
@@ -305,8 +342,8 @@ function switchTab(tab) {
   totalSec.classList.remove('fade-in');
   void dailySec.offsetWidth; // trigger reflow
   
-  const baseBtnClass = "flex-1 py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30 flex justify-center items-center gap-2 transition-colors whitespace-nowrap px-3";
-  const activeBtnClass = "flex-1 py-3 text-center border-b-2 border-amber-500 text-amber-400 bg-slate-900/60 font-bold flex justify-center items-center gap-2 transition-colors whitespace-nowrap px-3";
+  const baseBtnClass = "flex-1 py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-white hover:bg-slate-800/30 flex justify-center items-center gap-2 transition-colors whitespace-nowrap px-3 cursor-pointer";
+  const activeBtnClass = "flex-1 py-3 text-center border-b-2 border-amber-500 text-amber-400 bg-slate-900/60 font-bold flex justify-center items-center gap-2 transition-colors whitespace-nowrap px-3 cursor-pointer";
 
   dailyBtn.className = baseBtnClass;
   monthlyBtn.className = baseBtnClass;
