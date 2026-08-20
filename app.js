@@ -18,6 +18,7 @@ let sales = [];
 let dailyCosts = {};
 let selectedProdId = null;
 let undoStack = [];
+let parsedRestoreData = null;
 
 // Dynamic Cloud Auth Credentials (synced from Firebase /systemAuth)
 let authCredentials = {
@@ -146,6 +147,124 @@ function handleLogout() {
 
 checkAuth();
 
+// ==========================================
+// 1-CLICK FULL DATABASE JSON BACKUP & RESTORE
+// ==========================================
+function exportDatabaseToJson() {
+  if (getCurrentUserRole() !== 'admin') {
+    return alert('Access Denied: Only Admin can export database backups.');
+  }
+
+  db.ref('/').once('value').then(snapshot => {
+    const rawData = snapshot.val() || {};
+    const backupPayload = {
+      meta: {
+        appName: "Sanvee POS & Profit Tracker",
+        exportedAt: new Date().toISOString(),
+        version: "2.0"
+      },
+      products: rawData.products || {},
+      sales: rawData.sales || {},
+      dailyCosts: rawData.dailyCosts || {},
+      systemAuth: rawData.systemAuth || { admin: "project420", staff: "staff123" }
+    };
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupPayload, null, 2));
+    const now = new Date();
+    const dateFormatted = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    const timeFormatted = `${String(now.getHours()).padStart(2,'0')}-${String(now.getMinutes()).padStart(2,'0')}`;
+    const filename = `sanvee_pos_backup_${dateFormatted}_${timeFormatted}.json`;
+
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", filename);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+
+    alert(`✅ Full database backup downloaded successfully as:\n${filename}\n\nKeep this file safe in your Google Drive or computer!`);
+  }).catch(err => {
+    alert('Error exporting database: ' + err.message);
+  });
+}
+
+function openRestoreModal() {
+  if (getCurrentUserRole() !== 'admin') {
+    return alert('Access Denied: Only Admin can restore database.');
+  }
+  const modal = document.getElementById('restore-modal');
+  if (modal) {
+    document.getElementById('input-restore-file').value = '';
+    document.getElementById('restore-preview-box').classList.add('hidden');
+    document.getElementById('btn-confirm-restore').disabled = true;
+    parsedRestoreData = null;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+}
+
+function closeRestoreModal() {
+  const modal = document.getElementById('restore-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+}
+
+function previewBackupFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    try {
+      const data = JSON.parse(evt.target.result);
+      
+      // Support both structured backups (with meta) and raw Firebase exports
+      const prods = data.products ? (Array.isArray(data.products) ? data.products : Object.values(data.products)) : [];
+      const sls = data.sales ? (Array.isArray(data.sales) ? data.sales : Object.values(data.sales)) : [];
+      const costs = data.dailyCosts ? Object.keys(data.dailyCosts) : [];
+
+      document.getElementById('preview-prod-count').innerText = `${prods.length} Items`;
+      document.getElementById('preview-sales-count').innerText = `${sls.length} Records`;
+      document.getElementById('preview-costs-count').innerText = `${costs.length} Days`;
+
+      parsedRestoreData = data;
+      document.getElementById('restore-preview-box').classList.remove('hidden');
+      document.getElementById('btn-confirm-restore').disabled = false;
+    } catch (err) {
+      alert('Invalid JSON file. Please select a valid Sanvee POS backup JSON file.');
+      document.getElementById('restore-preview-box').classList.add('hidden');
+      document.getElementById('btn-confirm-restore').disabled = true;
+      parsedRestoreData = null;
+    }
+  };
+  reader.readAsText(file);
+}
+
+function executeDatabaseRestore() {
+  if (!parsedRestoreData) {
+    return alert('Please select a valid backup JSON file first.');
+  }
+
+  if (!confirm('⚠️ WARNING: Restoring will overwrite existing cloud data with the contents of this backup file. Are you sure you want to proceed?')) {
+    return;
+  }
+
+  const updates = {};
+  if (parsedRestoreData.products) updates['products'] = parsedRestoreData.products;
+  if (parsedRestoreData.sales) updates['sales'] = parsedRestoreData.sales;
+  if (parsedRestoreData.dailyCosts) updates['dailyCosts'] = parsedRestoreData.dailyCosts;
+  if (parsedRestoreData.systemAuth) updates['systemAuth'] = parsedRestoreData.systemAuth;
+
+  db.ref('/').update(updates).then(() => {
+    alert('🎉 Database successfully restored from backup file!');
+    closeRestoreModal();
+  }).catch(err => {
+    alert('Error restoring database: ' + err.message);
+  });
+}
+
 // CHANGE PASSWORD MODAL & HANDLERS
 function openPasswordModal() {
   const modal = document.getElementById('password-modal');
@@ -170,6 +289,11 @@ function closePasswordModal() {
 // Attach globally
 window.openPasswordModal = openPasswordModal;
 window.closePasswordModal = closePasswordModal;
+window.exportDatabaseToJson = exportDatabaseToJson;
+window.openRestoreModal = openRestoreModal;
+window.closeRestoreModal = closeRestoreModal;
+window.previewBackupFile = previewBackupFile;
+window.executeDatabaseRestore = executeDatabaseRestore;
 window.switchTab = switchTab;
 window.handleLogout = handleLogout;
 window.openEditModal = openEditModal;
@@ -185,6 +309,15 @@ if (passModalEl) {
   passModalEl.addEventListener('click', (e) => {
     if (e.target === passModalEl) {
       closePasswordModal();
+    }
+  });
+}
+
+const restoreModalEl = document.getElementById('restore-modal');
+if (restoreModalEl) {
+  restoreModalEl.addEventListener('click', (e) => {
+    if (e.target === restoreModalEl) {
+      closeRestoreModal();
     }
   });
 }
@@ -388,7 +521,8 @@ document.addEventListener('click', (e) => {
   const form = document.getElementById('form-sale-entry');
   const editModal = document.getElementById('edit-product-modal');
   const passModal = document.getElementById('password-modal');
-  if (selectedProdId && form && !form.contains(e.target) && (!editModal || !editModal.contains(e.target)) && (!passModal || !passModal.contains(e.target))) {
+  const restoreModal = document.getElementById('restore-modal');
+  if (selectedProdId && form && !form.contains(e.target) && (!editModal || !editModal.contains(e.target)) && (!passModal || !passModal.contains(e.target)) && (!restoreModal || !restoreModal.contains(e.target))) {
     clearProductSelection();
   }
 });
