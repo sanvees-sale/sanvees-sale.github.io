@@ -19,6 +19,43 @@ let dailyCosts = {};
 let selectedProdId = null;
 let undoStack = [];
 
+// Unified Helper Functions for Consistent Quantities and Financials across ALL tabs
+function getRecordQty(s) {
+  if (!s) return 0;
+  if (typeof s.monthlyQty === 'number' && s.monthlyQty > 0) {
+    return s.monthlyQty;
+  }
+  const parsedMonthly = parseInt(s.monthlyQty);
+  if (!isNaN(parsedMonthly) && parsedMonthly > 0) {
+    return parsedMonthly;
+  }
+  if (typeof s.qty === 'number' && s.qty > 0) {
+    return s.qty;
+  }
+  const parsedQty = parseInt(s.qty);
+  return (!isNaN(parsedQty) && parsedQty > 0) ? parsedQty : 0;
+}
+
+function getRecordGross(s, prod) {
+  if (!s) return 0;
+  const q = getRecordQty(s);
+  if (q <= 0) return 0;
+
+  if (typeof s.monthlyGrossProfit === 'number' && s.monthlyGrossProfit > 0) {
+    return s.monthlyGrossProfit;
+  }
+  if (typeof s.grossProfit === 'number' && s.grossProfit > 0) {
+    return s.grossProfit;
+  }
+  if (prod && typeof prod.selling === 'number' && typeof prod.buying === 'number') {
+    return (prod.selling - prod.buying) * q;
+  }
+  if (typeof s.selling === 'number' && typeof s.buying === 'number') {
+    return (s.selling - s.buying) * q;
+  }
+  return 0;
+}
+
 // AUTH LOGIN SYSTEM
 document.getElementById('form-login').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -257,6 +294,8 @@ function resetDayWiseData() {
   const daySales = sales.filter(s => s.date === targetDate);
   let updates = {};
   daySales.forEach(s => {
+    updates[`sales/${s.id}/qty`] = 0;
+    updates[`sales/${s.id}/grossProfit`] = 0;
     updates[`sales/${s.id}/monthlyQty`] = 0;
     updates[`sales/${s.id}/monthlyGrossProfit`] = 0;
   });
@@ -282,12 +321,14 @@ function clearTodaySale() {
 
   if (confirm('Reset daily sales for this date to 0?')) {
     saveUndoSnapshot(date);
+    let updates = {};
     todaysSales.forEach(s => {
-      db.ref('sales/' + s.id).update({
-        qty: 0,
-        grossProfit: 0
-      });
+      updates[`sales/${s.id}/qty`] = 0;
+      updates[`sales/${s.id}/grossProfit`] = 0;
+      updates[`sales/${s.id}/monthlyQty`] = 0;
+      updates[`sales/${s.id}/monthlyGrossProfit`] = 0;
     });
+    db.ref().update(updates);
   }
 }
 
@@ -400,8 +441,9 @@ function selectProductCard(id) {
   const btnSubmit = document.getElementById('btn-sale-submit');
 
   if(existingSale) {
-    qtyInput.value = existingSale.qty;
-    btnSubmit.innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Update Sale Qty (${existingSale.qty} Pcs)`;
+    const currentQ = getRecordQty(existingSale);
+    qtyInput.value = currentQ;
+    btnSubmit.innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Update Sale Qty (${currentQ} Pcs)`;
   } else {
     qtyInput.value = 1;
     btnSubmit.innerHTML = `<i class="fa-solid fa-plus"></i> Add / Update Sale Entry`;
@@ -436,8 +478,8 @@ function renderProductSelector() {
 
   grid.innerHTML = products.map(p => {
     const todayQty = sales
-      .filter(s => s.date === date && String(s.productId) === String(p.id))
-      .reduce((sum, item) => sum + item.qty, 0);
+      .filter(s => s.date === date && (String(s.productId) === String(p.id) || (s.id && s.id.endsWith('_' + p.id))))
+      .reduce((sum, item) => sum + getRecordQty(item), 0);
 
     const isSelected = String(selectedProdId) === String(p.id);
     const selectedClass = isSelected ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-400' : 'border-slate-100 bg-white';
@@ -512,9 +554,9 @@ function renderDailyView() {
     let totalGrossProfit = 0;
 
     tbody.innerHTML = products.map((p, idx) => {
-      const s = sales.find(item => item.date === date && item.productId === p.id);
-      const qty = s ? s.qty : 0;
-      const grossProfit = s ? s.grossProfit : 0;
+      const s = sales.find(item => item.date === date && (String(item.productId) === String(p.id) || (item.id && item.id.endsWith('_' + p.id))));
+      const qty = getRecordQty(s);
+      const grossProfit = getRecordGross(s, p);
 
       totalQty += qty;
       totalGrossProfit += grossProfit;
@@ -566,22 +608,29 @@ function renderMonthlyView() {
     filteredSales = filteredSales.filter(s => s.date === dateFilter);
   }
 
+  // Filter only records that have positive sales quantity
+  const activeFilteredSales = filteredSales.filter(s => getRecordQty(s) > 0);
+
   const tbody = document.getElementById('tbody-monthly-sales');
-  if (filteredSales.length === 0) {
+  if (activeFilteredSales.length === 0) {
     tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400 text-xs font-semibold">No monthly records found for selected filter.</td></tr>`;
   } else {
-    tbody.innerHTML = filteredSales.map((s, idx) => {
+    tbody.innerHTML = activeFilteredSales.map((s, idx) => {
       const pId = s.productId || (s.id ? s.id.split('_')[1] : null);
+      const prod = products.find(p => String(p.id) === String(pId));
+      const q = getRecordQty(s);
+      const g = getRecordGross(s, prod);
+
       return `
         <tr class="hover:bg-slate-100/50 transition-colors border-b border-slate-50">
           <td class="p-4 text-center font-bold text-slate-400">${idx + 1}</td>
           <td class="p-4 font-extrabold text-slate-700 bg-slate-50/50">${s.date}</td>
           <td class="p-4"><img src="${s.image}" class="img-compact shadow-sm border-slate-100"></td>
           <td class="p-4">
-            <div class="text-xs font-black text-slate-800 bg-slate-100 px-2 py-1 rounded inline-block mb-1">Qty: ${s.monthlyQty !== undefined ? s.monthlyQty : s.qty} Pcs</div>
+            <div class="text-xs font-black text-slate-800 bg-slate-100 px-2 py-1 rounded inline-block mb-1">Qty: ${q} Pcs</div>
             <div class="text-[11px] text-slate-500 mt-1 font-semibold">Sell: ৳${s.selling} <span class="text-slate-300 mx-1">|</span> Buy: ৳${s.buying}</div>
           </td>
-          <td class="p-4 font-black text-sm text-indigo-700">৳ ${s.monthlyGrossProfit !== undefined ? s.monthlyGrossProfit : s.grossProfit}</td>
+          <td class="p-4 font-black text-sm text-indigo-700">৳ ${g}</td>
           <td class="p-4 text-xs text-slate-600 leading-relaxed font-medium">${s.desc || ''}</td>
           <td class="p-4 text-center no-print">
             <button onclick="deleteProduct(event, ${pId})" class="text-rose-400 hover:text-white bg-rose-50 hover:bg-rose-500 p-2 transition-colors rounded-lg shadow-sm border border-rose-100 hover:border-rose-500" title="Delete Product Completely">
@@ -595,9 +644,11 @@ function renderMonthlyView() {
 
   let totalMonthlyQty = 0;
   let totalMonthlyGross = 0;
-  filteredSales.forEach(s => {
-    totalMonthlyQty += (s.monthlyQty !== undefined ? s.monthlyQty : s.qty);
-    totalMonthlyGross += (s.monthlyGrossProfit !== undefined ? s.monthlyGrossProfit : s.grossProfit);
+  activeFilteredSales.forEach(s => {
+    const pId = s.productId || (s.id ? s.id.split('_')[1] : null);
+    const prod = products.find(p => String(p.id) === String(pId));
+    totalMonthlyQty += getRecordQty(s);
+    totalMonthlyGross += getRecordGross(s, prod);
   });
 
   let totalMonthlyCosting = 0;
@@ -665,17 +716,24 @@ function generateRangeDailyReports() {
     let dayGrossProfit = 0;
     let itemsList = [];
 
-    products.forEach(p => {
-      const s = daySales.find(item => String(item.productId) === String(p.id) || (item.id && item.id.endsWith('_' + p.id)));
-      const q = s ? (s.monthlyQty !== undefined && s.monthlyQty > 0 ? s.monthlyQty : (s.qty || 0)) : 0;
-      const g = s ? (s.monthlyGrossProfit !== undefined && s.monthlyGrossProfit > 0 ? s.monthlyGrossProfit : (s.grossProfit || 0)) : 0;
-
+    // Check every sale entry recorded for this date
+    daySales.forEach(s => {
+      const q = getRecordQty(s);
       if (q > 0) {
-        const itemProfit = g > 0 ? g : (p.selling - p.buying) * q;
+        let pId = String(s.productId || (s.id ? s.id.split('_')[1] : ''));
+        const prod = products.find(p => String(p.id) === pId) || {
+          id: pId,
+          image: s.image || '',
+          selling: s.selling || 0,
+          buying: s.buying || 0,
+          desc: s.desc || ''
+        };
+        const itemProfit = getRecordGross(s, prod);
+
         dayQty += q;
         dayGrossProfit += itemProfit;
         itemsList.push({
-          product: p,
+          product: prod,
           qty: q,
           gross: itemProfit
         });
@@ -683,7 +741,6 @@ function generateRangeDailyReports() {
     });
 
     const dayCost = parseFloat(dailyCosts[dStr]) || 0;
-    const perProdCost = dayQty > 0 ? (dayCost / dayQty).toFixed(2) : 0;
     const dayNetProfit = dayGrossProfit - dayCost;
 
     if (showFilter === 'sales_only' && dayQty === 0 && dayCost === 0) {
@@ -777,7 +834,7 @@ function printRangeReports() {
 function renderGrandTotalView() {
   let productStats = {};
 
-  // 1. Initialize stats object for active products (using String keys for reliable matching)
+  // 1. Initialize stats object for active catalog products
   products.forEach(p => {
     productStats[String(p.id)] = {
       id: p.id,
@@ -790,14 +847,27 @@ function renderGrandTotalView() {
     };
   });
 
-  // 2. Aggregate sales quantities into corresponding active product stats
+  // 2. Aggregate sales quantities into corresponding product stats across all-time records
   sales.forEach(s => {
-    let q = (s.monthlyQty !== undefined ? s.monthlyQty : s.qty) || 0;
-    let g = (s.monthlyGrossProfit !== undefined ? s.monthlyGrossProfit : s.grossProfit) || 0;
+    const q = getRecordQty(s);
+    if (q <= 0) return;
 
     let pId = String(s.productId || (s.id ? s.id.split('_')[1] : ''));
-    
-    if (pId && productStats[pId]) {
+    const prod = products.find(p => String(p.id) === pId);
+    const g = getRecordGross(s, prod);
+
+    if (pId) {
+      if (!productStats[pId]) {
+        productStats[pId] = {
+          id: pId,
+          image: s.image || '',
+          selling: s.selling || 0,
+          buying: s.buying || 0,
+          desc: s.desc || '',
+          lifetimeQty: 0,
+          lifetimeGross: 0
+        };
+      }
       productStats[pId].lifetimeQty += q;
       productStats[pId].lifetimeGross += g;
     }
