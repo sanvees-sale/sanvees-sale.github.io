@@ -19,6 +19,21 @@ let dailyCosts = {};
 let selectedProdId = null;
 let undoStack = [];
 
+// Dynamic Cloud Auth Credentials (synced from Firebase /systemAuth)
+let authCredentials = {
+  admin: "project420",
+  staff: "staff123"
+};
+
+// Listen to Cloud Password updates in Realtime
+db.ref('systemAuth').on('value', snap => {
+  const data = snap.val();
+  if (data) {
+    if (data.admin) authCredentials.admin = String(data.admin);
+    if (data.staff) authCredentials.staff = String(data.staff);
+  }
+});
+
 // Unified Helper Functions for Consistent Quantities and Financials across ALL tabs
 function getRecordQty(s) {
   if (!s) return 0;
@@ -56,14 +71,49 @@ function getRecordGross(s, prod) {
   return 0;
 }
 
-// AUTH LOGIN SYSTEM
+// ROLE MANAGEMENT
+function getCurrentUserRole() {
+  return sessionStorage.getItem('userRole') || 'staff';
+}
+
+function applyRolePermissions() {
+  const role = getCurrentUserRole();
+  const badgeText = document.getElementById('role-badge-text');
+  const badgeEl = document.getElementById('header-role-badge');
+  const body = document.body;
+
+  body.classList.remove('role-admin', 'role-staff');
+
+  if (role === 'admin') {
+    body.classList.add('role-admin');
+    if (badgeText) badgeText.innerText = 'Admin (Full Access)';
+    if (badgeEl) {
+      badgeEl.className = 'px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm bg-amber-500/20 text-amber-400 border border-amber-500/30';
+    }
+  } else {
+    body.classList.add('role-staff');
+    if (badgeText) badgeText.innerText = 'Staff (Daily Entry Only)';
+    if (badgeEl) {
+      badgeEl.className = 'px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm bg-indigo-500/20 text-indigo-300 border border-indigo-500/30';
+    }
+    // Force staff to daily entry tab
+    switchTab('daily');
+  }
+}
+
+// AUTH LOGIN SYSTEM (Checked against cloud dynamic passwords)
 document.getElementById('form-login').addEventListener('submit', (e) => {
   e.preventDefault();
-  const user = document.getElementById('login-username').value;
-  const pass = document.getElementById('login-password').value;
+  const user = document.getElementById('login-username').value.trim();
+  const pass = document.getElementById('login-password').value.trim();
 
-  if (user === 'admin' && pass === 'project420') {
+  if (user === 'admin' && pass === authCredentials.admin) {
     sessionStorage.setItem('isLoggedIn', 'true');
+    sessionStorage.setItem('userRole', 'admin');
+    checkAuth();
+  } else if (user === 'staff' && pass === authCredentials.staff) {
+    sessionStorage.setItem('isLoggedIn', 'true');
+    sessionStorage.setItem('userRole', 'staff');
     checkAuth();
   } else {
     document.getElementById('login-error').classList.remove('hidden');
@@ -75,6 +125,7 @@ function checkAuth() {
   if (loggedIn) {
     document.getElementById('login-modal').classList.add('hidden');
     document.getElementById('app-content').classList.remove('hidden');
+    applyRolePermissions();
     initCloudSync();
   } else {
     document.getElementById('login-modal').classList.remove('hidden');
@@ -84,10 +135,61 @@ function checkAuth() {
 
 function handleLogout() {
   sessionStorage.removeItem('isLoggedIn');
+  sessionStorage.removeItem('userRole');
   checkAuth();
 }
 
 checkAuth();
+
+// CHANGE PASSWORD MODAL & HANDLERS (ADMIN ONLY)
+function openPasswordModal() {
+  if (getCurrentUserRole() !== 'admin') return;
+  const modal = document.getElementById('password-modal');
+  if (modal) {
+    document.getElementById('input-new-admin-pass').value = authCredentials.admin;
+    document.getElementById('input-new-staff-pass').value = authCredentials.staff;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+}
+
+function closePasswordModal() {
+  const modal = document.getElementById('password-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+}
+
+const formChangePass = document.getElementById('form-change-password');
+if (formChangePass) {
+  formChangePass.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (getCurrentUserRole() !== 'admin') {
+      return alert('Access Denied: Only Admin can change passwords.');
+    }
+
+    const newAdmin = document.getElementById('input-new-admin-pass').value.trim();
+    const newStaff = document.getElementById('input-new-staff-pass').value.trim();
+
+    if (!newAdmin || !newStaff) {
+      return alert('Passwords cannot be empty.');
+    }
+
+    db.ref('systemAuth').set({
+      admin: newAdmin,
+      staff: newStaff,
+      updatedAt: Date.now()
+    }).then(() => {
+      authCredentials.admin = newAdmin;
+      authCredentials.staff = newStaff;
+      alert('✅ Admin & Staff passwords successfully updated in cloud!');
+      closePasswordModal();
+    }).catch(err => {
+      alert('Error updating passwords: ' + err.message);
+    });
+  });
+}
 
 function initCloudSync() {
   db.ref('products').on('value', snap => {
@@ -95,19 +197,23 @@ function initCloudSync() {
     products = data ? Object.values(data) : [];
     renderProductSelector();
     renderDailyView();
-    renderMonthlyView();
-    renderGrandTotalView();
-    generateRangeDailyReports();
+    if (getCurrentUserRole() === 'admin') {
+      renderMonthlyView();
+      renderGrandTotalView();
+      generateRangeDailyReports();
+    }
   });
 
   db.ref('sales').on('value', snap => {
     const data = snap.val();
     sales = data ? Object.values(data) : [];
     renderDailyView();
-    renderMonthlyView();
-    renderGrandTotalView();
-    generateRangeDailyReports();
-    if(selectedProdId) {
+    if (getCurrentUserRole() === 'admin') {
+      renderMonthlyView();
+      renderGrandTotalView();
+      generateRangeDailyReports();
+    }
+    if (selectedProdId) {
       selectProductCard(selectedProdId);
     }
   });
@@ -115,17 +221,23 @@ function initCloudSync() {
   db.ref('dailyCosts').on('value', snap => {
     dailyCosts = snap.val() || {};
     const selectedDate = document.getElementById('input-sale-date').value || getTodayString();
-    document.getElementById('input-daily-costing').value = dailyCosts[selectedDate] || 0;
+    const costInput = document.getElementById('input-daily-costing');
+    if (costInput) {
+      costInput.value = dailyCosts[selectedDate] || 0;
+    }
     
-    const mDateFilter = document.getElementById('input-monthly-date-filter').value;
-    if (mDateFilter) {
-      document.getElementById('input-monthly-cost-edit').value = dailyCosts[mDateFilter] || 0;
+    const mDateFilter = document.getElementById('input-monthly-date-filter');
+    if (mDateFilter && mDateFilter.value) {
+      const mCostEdit = document.getElementById('input-monthly-cost-edit');
+      if (mCostEdit) mCostEdit.value = dailyCosts[mDateFilter.value] || 0;
     }
 
     renderDailyView();
-    renderMonthlyView();
-    renderGrandTotalView();
-    generateRangeDailyReports();
+    if (getCurrentUserRole() === 'admin') {
+      renderMonthlyView();
+      renderGrandTotalView();
+      generateRangeDailyReports();
+    }
   });
 }
 
@@ -166,6 +278,11 @@ function initDefaultReportRange() {
 initDefaultReportRange();
 
 function switchTab(tab) {
+  const role = getCurrentUserRole();
+  if (role === 'staff' && tab !== 'daily') {
+    tab = 'daily'; // restrict staff to daily tab
+  }
+
   const dailyBtn = document.getElementById('tab-daily-btn');
   const monthlyBtn = document.getElementById('tab-monthly-btn');
   const reportsBtn = document.getElementById('tab-reports-btn');
@@ -200,16 +317,16 @@ function switchTab(tab) {
     dailySec.classList.remove('hidden');
     dailySec.classList.add('fade-in');
     dailyBtn.className = activeBtnClass;
-  } else if (tab === 'monthly') {
+  } else if (tab === 'monthly' && role === 'admin') {
     monthlySec.classList.remove('hidden');
     monthlySec.classList.add('fade-in');
     monthlyBtn.className = activeBtnClass;
-  } else if (tab === 'reports') {
+  } else if (tab === 'reports' && role === 'admin') {
     reportsSec.classList.remove('hidden');
     reportsSec.classList.add('fade-in');
     reportsBtn.className = activeBtnClass;
     generateRangeDailyReports();
-  } else if (tab === 'total') {
+  } else if (tab === 'total' && role === 'admin') {
     totalSec.classList.remove('hidden');
     totalSec.classList.add('fade-in');
     totalBtn.className = activeBtnClass;
@@ -233,7 +350,8 @@ function clearProductSelection() {
 document.addEventListener('click', (e) => {
   const form = document.getElementById('form-sale-entry');
   const editModal = document.getElementById('edit-product-modal');
-  if (selectedProdId && form && !form.contains(e.target) && (!editModal || !editModal.contains(e.target))) {
+  const passModal = document.getElementById('password-modal');
+  if (selectedProdId && form && !form.contains(e.target) && (!editModal || !editModal.contains(e.target)) && (!passModal || !passModal.contains(e.target))) {
     clearProductSelection();
   }
 });
@@ -247,6 +365,9 @@ function saveUndoSnapshot(date) {
 }
 
 function performUndo() {
+  if (getCurrentUserRole() !== 'admin') {
+    return alert('Access Denied: Undo action is restricted to Admin.');
+  }
   if (undoStack.length === 0) {
     alert('No history available to undo!');
     return;
@@ -262,6 +383,10 @@ function performUndo() {
 }
 
 function saveTodayToMonthly() {
+  if (getCurrentUserRole() !== 'admin') {
+    return alert('Access Denied: Saving to Monthly is restricted to Admin.');
+  }
+
   const date = document.getElementById('input-sale-date').value || todayStr;
   const todaysSales = sales.filter(s => s.date === date);
 
@@ -284,6 +409,10 @@ function saveTodayToMonthly() {
 }
 
 function resetDayWiseData() {
+  if (getCurrentUserRole() !== 'admin') {
+    return alert('Access Denied: Resetting data is restricted to Admin.');
+  }
+
   const targetDate = document.getElementById('input-monthly-date-filter').value;
   if (!targetDate) {
     return alert('Please select a date in "Specific Date Filter" first to reset its data to 0!');
@@ -315,6 +444,10 @@ function clearDateFilter() {
 }
 
 function clearTodaySale() {
+  if (getCurrentUserRole() !== 'admin') {
+    return alert('Access Denied: Clearing sales is restricted to Admin.');
+  }
+
   const date = document.getElementById('input-sale-date').value || todayStr;
   const todaysSales = sales.filter(s => s.date === date);
   if (todaysSales.length === 0) return alert('No sales recorded for this date!');
@@ -332,6 +465,7 @@ function clearTodaySale() {
   }
 }
 
+// 1. ADD PRODUCT (Staff & Admin can both enter Buying & Selling Price)
 document.getElementById('form-add-product').addEventListener('submit', (e) => {
   e.preventDefault();
   const file = document.getElementById('input-prod-file').files[0];
@@ -354,10 +488,12 @@ document.getElementById('form-add-product').addEventListener('submit', (e) => {
 
     db.ref('products/' + id).set(newProd);
     e.target.reset();
+    alert('✅ Product successfully uploaded to cloud catalog!');
   };
   reader.readAsDataURL(file);
 });
 
+// 2. RECORD / UPDATE SALE (Staff & Admin)
 document.getElementById('form-sale-entry').addEventListener('submit', (e) => {
   e.preventDefault();
   const qty = parseInt(document.getElementById('input-sale-qty').value);
@@ -368,7 +504,9 @@ document.getElementById('form-sale-entry').addEventListener('submit', (e) => {
     return alert('Please select a product picture first.');
   }
 
-  const prod = products.find(p => p.id === selectedProdId);
+  const prod = products.find(p => String(p.id) === String(selectedProdId));
+  if (!prod) return alert('Product not found.');
+
   const saleId = `${date}_${prod.id}`;
   const existingSale = sales.find(s => s.id === saleId);
 
@@ -400,7 +538,7 @@ function updateSaleQty(prodId, newQtyStr) {
   if (isNaN(qty) || qty < 0) return;
 
   const date = document.getElementById('input-sale-date').value || todayStr;
-  const prod = products.find(p => p.id === prodId);
+  const prod = products.find(p => String(p.id) === String(prodId));
   if(!prod) return;
 
   const saleId = `${date}_${prod.id}`;
@@ -436,7 +574,7 @@ function selectProductCard(id) {
   renderProductSelector();
 
   const date = document.getElementById('input-sale-date').value || todayStr;
-  const existingSale = sales.find(s => s.date === date && String(s.productId) === String(id));
+  const existingSale = sales.find(s => s.date === date && (String(s.productId) === String(id) || (s.id && s.id.endsWith('_' + id))));
   const qtyInput = document.getElementById('input-sale-qty');
   const btnSubmit = document.getElementById('btn-sale-submit');
 
@@ -452,6 +590,10 @@ function selectProductCard(id) {
 
 function deleteProduct(e, id) {
   if (e) e.stopPropagation();
+  if (getCurrentUserRole() !== 'admin') {
+    return alert('Access Denied: Product deletion is restricted to Admin only.');
+  }
+
   if(!confirm('Permanently delete this product from catalog and sales history?')) return;
   
   db.ref('products/' + id).remove();
@@ -470,6 +612,7 @@ function deleteProduct(e, id) {
 function renderProductSelector() {
   const grid = document.getElementById('product-grid-selector');
   const date = document.getElementById('input-sale-date').value || todayStr;
+  const role = getCurrentUserRole();
 
   if (products.length === 0) {
     grid.innerHTML = `<p class="col-span-full text-[11px] text-slate-400 text-center py-4 font-semibold">No products uploaded yet.</p>`;
@@ -484,21 +627,20 @@ function renderProductSelector() {
     const isSelected = String(selectedProdId) === String(p.id);
     const selectedClass = isSelected ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-400' : 'border-slate-100 bg-white';
     
-    const overlayVisibility = isSelected 
-      ? 'opacity-100 pointer-events-auto' 
-      : 'opacity-0 group-hover:opacity-100 pointer-events-auto';
+    // Only Admin gets Edit/Delete overlay buttons
+    const adminOverlay = role === 'admin' ? `
+      <div class="absolute top-1 right-1 flex flex-col gap-1 transition-opacity duration-200 z-50 opacity-0 group-hover:opacity-100 pointer-events-auto">
+         <button type="button" onclick="event.stopPropagation(); openEditModal(event, '${p.id}')" class="bg-blue-500/95 text-white p-1.5 rounded hover:bg-blue-600 shadow-md backdrop-blur-sm cursor-pointer" title="Edit Product"><i class="fa-solid fa-pen text-[10px]"></i></button>
+         <button type="button" onclick="event.stopPropagation(); deleteProduct(event, '${p.id}')" class="bg-rose-500/95 text-white p-1.5 rounded hover:bg-rose-600 shadow-md backdrop-blur-sm cursor-pointer" title="Delete Product"><i class="fa-solid fa-trash text-[10px]"></i></button>
+      </div>
+    ` : '';
 
     return `
       <div onclick="selectProductCard('${p.id}')" id="prod-card-${p.id}" class="prod-select-card relative cursor-pointer border rounded-xl p-1.5 flex flex-col items-center transition-all hover:border-amber-400 hover:shadow-md shadow-sm ${selectedClass} group">
         <img src="${p.image}" class="img-selector object-cover rounded-lg border border-slate-100">
         <span class="text-[10px] font-black text-slate-800 mt-1.5">৳${p.selling}</span>
         ${todayQty > 0 ? `<span class="absolute top-1 left-1 bg-amber-500 text-slate-900 font-black text-[9px] px-1.5 py-0.5 rounded-md shadow">${todayQty}</span>` : ''}
-        
-        <!-- Edit & Delete Overlay -->
-        <div class="absolute top-1 right-1 flex flex-col gap-1 transition-opacity duration-200 z-50 ${overlayVisibility}">
-           <button type="button" onclick="event.stopPropagation(); openEditModal(event, '${p.id}')" class="bg-blue-500/95 text-white p-1.5 rounded hover:bg-blue-600 shadow-md backdrop-blur-sm cursor-pointer" title="Edit Product"><i class="fa-solid fa-pen text-[10px]"></i></button>
-           <button type="button" onclick="event.stopPropagation(); deleteProduct(event, '${p.id}')" class="bg-rose-500/95 text-white p-1.5 rounded hover:bg-rose-600 shadow-md backdrop-blur-sm cursor-pointer" title="Delete Product"><i class="fa-solid fa-trash text-[10px]"></i></button>
-        </div>
+        ${adminOverlay}
       </div>
     `;
   }).join('');
@@ -506,6 +648,10 @@ function renderProductSelector() {
 
 function openEditModal(e, id) {
   if (e) e.stopPropagation(); 
+  if (getCurrentUserRole() !== 'admin') {
+    return alert('Access Denied: Product editing is restricted to Admin only.');
+  }
+
   const prod = products.find(p => String(p.id) === String(id));
   if (!prod) return;
   
@@ -527,6 +673,8 @@ function closeEditModal() {
 
 document.getElementById('form-edit-product').addEventListener('submit', (e) => {
   e.preventDefault();
+  if (getCurrentUserRole() !== 'admin') return;
+
   const id = parseInt(document.getElementById('edit-prod-id').value);
   const buy = parseFloat(document.getElementById('edit-prod-buy').value) || 0;
   const sell = parseFloat(document.getElementById('edit-prod-sell').value) || 0;
@@ -545,6 +693,7 @@ document.getElementById('form-edit-product').addEventListener('submit', (e) => {
 function renderDailyView() {
   const date = document.getElementById('input-sale-date').value || todayStr;
   document.getElementById('summary-header-date').innerText = `Date: ${date}`;
+  const role = getCurrentUserRole();
 
   const tbody = document.getElementById('tbody-daily-sales');
   if (products.length === 0) {
@@ -561,6 +710,24 @@ function renderDailyView() {
       totalQty += qty;
       totalGrossProfit += grossProfit;
 
+      // Both Staff and Admin can view Sell and Buy prices
+      const priceBadges = `
+        <div class="text-[11px] font-semibold text-slate-600 flex gap-1.5 items-center">
+          <span class="bg-amber-100/80 text-amber-900 px-2 py-0.5 rounded shadow-sm border border-amber-200 font-bold">Sell: ৳${p.selling}</span>
+          <span class="text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">Buy: ৳${p.buying}</span>
+        </div>
+      `;
+
+      const financialCol = role === 'admin' ? `
+        <td class="admin-only p-4 font-black text-sm text-slate-800">৳ ${grossProfit}</td>
+      ` : '';
+
+      const actionCol = role === 'admin' ? `
+        <td class="admin-only p-4 text-center no-print">
+          <button onclick="deleteProduct(event, ${p.id})" class="text-rose-400 hover:text-white bg-rose-50 hover:bg-rose-500 p-2 transition-colors rounded-lg shadow-sm border border-rose-100 hover:border-rose-500" title="Delete Product"><i class="fa-solid fa-trash-can"></i></button>
+        </td>
+      ` : '';
+
       return `
         <tr class="hover:bg-slate-100/50 transition-colors border-b border-slate-50" data-sell-price="${p.selling}">
           <td class="p-4 text-center font-bold text-slate-400">${idx + 1}</td>
@@ -571,35 +738,35 @@ function renderDailyView() {
               <input type="number" min="0" value="${qty}" onchange="updateSaleQty(${p.id}, this.value)" class="w-16 border border-slate-200 rounded-lg p-1 text-xs font-black text-slate-900 bg-amber-50 text-center outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all">
               <span class="text-xs font-bold text-slate-400">Pcs</span>
             </div>
-            <div class="text-[11px] font-semibold text-slate-600 flex gap-1.5 items-center">
-              <span class="bg-amber-100/80 text-amber-900 px-2 py-0.5 rounded shadow-sm border border-amber-200 font-bold">Sell: ৳${p.selling}</span>
-              <span class="text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">Buy: ৳${p.buying}</span>
-            </div>
+            ${priceBadges}
           </td>
-          <td class="p-4 font-black text-sm text-slate-800">৳ ${grossProfit}</td>
+          ${financialCol}
           <td class="p-4 text-xs text-slate-600 leading-relaxed font-medium">${p.desc || ''}</td>
-          <td class="p-4 text-center no-print">
-            <button onclick="deleteProduct(event, ${p.id})" class="text-rose-400 hover:text-white bg-rose-50 hover:bg-rose-500 p-2 transition-colors rounded-lg shadow-sm border border-rose-100 hover:border-rose-500" title="Delete Product"><i class="fa-solid fa-trash-can"></i></button>
-          </td>
+          ${actionCol}
         </tr>
       `;
     }).join('');
 
-    const costing = parseFloat(document.getElementById('input-daily-costing').value) || 0;
+    const costing = parseFloat(document.getElementById('input-daily-costing') ? document.getElementById('input-daily-costing').value : 0) || 0;
     const perProdCost = totalQty > 0 ? (costing / totalQty).toFixed(2) : 0;
     const totalProfit = totalGrossProfit - costing;
 
     document.getElementById('summary-qty').innerText = `${totalQty} Pcs`;
-    document.getElementById('summary-gross-profit').innerText = `৳ ${totalGrossProfit}`;
-    document.getElementById('summary-costing').innerText = `৳ ${costing}`;
-    document.getElementById('summary-per-product-cost').innerText = `৳ ${perProdCost}`;
-    document.getElementById('summary-total-profit').innerText = `৳ ${totalProfit}`;
+    
+    if (role === 'admin') {
+      document.getElementById('summary-gross-profit').innerText = `৳ ${totalGrossProfit}`;
+      document.getElementById('summary-costing').innerText = `৳ ${costing}`;
+      document.getElementById('summary-per-product-cost').innerText = `৳ ${perProdCost}`;
+      document.getElementById('summary-total-profit').innerText = `৳ ${totalProfit}`;
+    }
   }
 
   filterDailyTableByPrice();
 }
 
 function renderMonthlyView() {
+  if (getCurrentUserRole() !== 'admin') return;
+
   const monthFilter = document.getElementById('input-monthly-filter').value;
   const dateFilter = document.getElementById('input-monthly-date-filter').value;
 
@@ -612,6 +779,8 @@ function renderMonthlyView() {
   const activeFilteredSales = filteredSales.filter(s => getRecordQty(s) > 0);
 
   const tbody = document.getElementById('tbody-monthly-sales');
+  if (!tbody) return;
+
   if (activeFilteredSales.length === 0) {
     tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400 text-xs font-semibold">No monthly records found for selected filter.</td></tr>`;
   } else {
@@ -662,14 +831,21 @@ function renderMonthlyView() {
     });
   }
 
-  document.getElementById('m-stat-qty').innerText = `${totalMonthlyQty} Pcs`;
-  document.getElementById('m-stat-gross').innerText = `৳ ${totalMonthlyGross}`;
-  document.getElementById('m-stat-costing').innerText = `৳ ${totalMonthlyCosting}`;
-  document.getElementById('m-stat-net').innerText = `৳ ${totalMonthlyGross - totalMonthlyCosting}`;
+  const elMQty = document.getElementById('m-stat-qty');
+  const elMGross = document.getElementById('m-stat-gross');
+  const elMCost = document.getElementById('m-stat-costing');
+  const elMNet = document.getElementById('m-stat-net');
+
+  if (elMQty) elMQty.innerText = `${totalMonthlyQty} Pcs`;
+  if (elMGross) elMGross.innerText = `৳ ${totalMonthlyGross}`;
+  if (elMCost) elMCost.innerText = `৳ ${totalMonthlyCosting}`;
+  if (elMNet) elMNet.innerText = `৳ ${totalMonthlyGross - totalMonthlyCosting}`;
 }
 
-// TAB 4: MULTI-DATE RANGE INDIVIDUAL DAILY REPORTS
+// TAB 4: MULTI-DATE RANGE INDIVIDUAL DAILY REPORTS (ADMIN ONLY)
 function generateRangeDailyReports() {
+  if (getCurrentUserRole() !== 'admin') return;
+
   const fromStr = document.getElementById('input-range-from') ? document.getElementById('input-range-from').value : '';
   const toStr = document.getElementById('input-range-to') ? document.getElementById('input-range-to').value : '';
   const showFilter = document.getElementById('select-range-filter') ? document.getElementById('select-range-filter').value : 'sales_only';
@@ -825,6 +1001,9 @@ function generateRangeDailyReports() {
 }
 
 function printRangeReports() {
+  if (getCurrentUserRole() !== 'admin') {
+    return alert('Access Denied: Printing reports is restricted to Admin.');
+  }
   switchTab('reports');
   setTimeout(() => {
     window.print();
@@ -832,6 +1011,8 @@ function printRangeReports() {
 }
 
 function renderGrandTotalView() {
+  if (getCurrentUserRole() !== 'admin') return;
+
   let productStats = {};
 
   // 1. Initialize stats object for active catalog products
@@ -888,10 +1069,15 @@ function renderGrandTotalView() {
   });
 
   // 4. Update the Grand Total summary cards
-  document.getElementById('g-stat-qty').innerText = `${grandQty} Pcs`;
-  document.getElementById('g-stat-gross').innerText = `৳ ${grandGross}`;
-  document.getElementById('g-stat-costing').innerText = `৳ ${grandCosting}`;
-  document.getElementById('g-stat-net').innerText = `৳ ${grandGross - grandCosting}`;
+  const elGQty = document.getElementById('g-stat-qty');
+  const elGGross = document.getElementById('g-stat-gross');
+  const elGCost = document.getElementById('g-stat-costing');
+  const elGNet = document.getElementById('g-stat-net');
+
+  if (elGQty) elGQty.innerText = `${grandQty} Pcs`;
+  if (elGGross) elGGross.innerText = `৳ ${grandGross}`;
+  if (elGCost) elGCost.innerText = `৳ ${grandCosting}`;
+  if (elGNet) elGNet.innerText = `৳ ${grandGross - grandCosting}`;
 
   // 5. Render the Lifetime Product Sales Breakdown table
   const tbody = document.getElementById('tbody-grand-total-sales');
@@ -950,31 +1136,48 @@ function clearPriceSearch() {
 // Event listeners
 document.getElementById('input-sale-date').addEventListener('change', () => {
   const selectedDate = document.getElementById('input-sale-date').value;
-  document.getElementById('input-daily-costing').value = dailyCosts[selectedDate] || 0;
+  const costInput = document.getElementById('input-daily-costing');
+  if (costInput) {
+    costInput.value = dailyCosts[selectedDate] || 0;
+  }
   renderProductSelector();
   renderDailyView();
 });
 
-document.getElementById('input-daily-costing').addEventListener('input', (e) => {
-  const selectedDate = document.getElementById('input-sale-date').value || todayStr;
-  const val = parseFloat(e.target.value) || 0;
-  db.ref('dailyCosts/' + selectedDate).set(val);
-});
+const dailyCostingInput = document.getElementById('input-daily-costing');
+if (dailyCostingInput) {
+  dailyCostingInput.addEventListener('input', (e) => {
+    if (getCurrentUserRole() !== 'admin') return;
+    const selectedDate = document.getElementById('input-sale-date').value || todayStr;
+    const val = parseFloat(e.target.value) || 0;
+    db.ref('dailyCosts/' + selectedDate).set(val);
+  });
+}
 
-document.getElementById('input-monthly-filter').addEventListener('change', renderMonthlyView);
-document.getElementById('input-monthly-date-filter').addEventListener('change', (e) => {
-  const dateVal = e.target.value;
-  if (dateVal) {
-    document.getElementById('input-monthly-cost-edit').value = dailyCosts[dateVal] || 0;
-  } else {
-    document.getElementById('input-monthly-cost-edit').value = '';
-  }
-  renderMonthlyView();
-});
+const monthlyFilterInput = document.getElementById('input-monthly-filter');
+if (monthlyFilterInput) {
+  monthlyFilterInput.addEventListener('change', renderMonthlyView);
+}
 
-document.getElementById('input-monthly-cost-edit').addEventListener('input', (e) => {
-  const targetDate = document.getElementById('input-monthly-date-filter').value;
-  if (!targetDate) return;
-  const val = parseFloat(e.target.value) || 0;
-  db.ref('dailyCosts/' + targetDate).set(val);
-});
+const monthlyDateFilterInput = document.getElementById('input-monthly-date-filter');
+if (monthlyDateFilterInput) {
+  monthlyDateFilterInput.addEventListener('change', (e) => {
+    const dateVal = e.target.value;
+    const mCostEdit = document.getElementById('input-monthly-cost-edit');
+    if (mCostEdit) {
+      mCostEdit.value = dateVal ? (dailyCosts[dateVal] || 0) : '';
+    }
+    renderMonthlyView();
+  });
+}
+
+const monthlyCostEditInput = document.getElementById('input-monthly-cost-edit');
+if (monthlyCostEditInput) {
+  monthlyCostEditInput.addEventListener('input', (e) => {
+    if (getCurrentUserRole() !== 'admin') return;
+    const targetDate = document.getElementById('input-monthly-date-filter').value;
+    if (!targetDate) return;
+    const val = parseFloat(e.target.value) || 0;
+    db.ref('dailyCosts/' + targetDate).set(val);
+  });
+}
