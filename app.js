@@ -298,6 +298,11 @@ window.switchTab = switchTab;
 window.handleLogout = handleLogout;
 window.openEditModal = openEditModal;
 window.closeEditModal = closeEditModal;
+window.printDailyReport = printDailyReport;
+window.printMonthlyReport = printMonthlyReport;
+window.printRangeReports = printRangeReports;
+window.printGrandTotalReport = printGrandTotalReport;
+window.printCurrentTab = printCurrentTab;
 
 const btnOpenPass = document.getElementById('btn-open-passwords');
 if (btnOpenPass) {
@@ -452,6 +457,8 @@ function switchTab(tab) {
   if (role === 'staff' && tab !== 'daily') {
     tab = 'daily'; // restrict staff to daily tab
   }
+
+  document.body.setAttribute('data-active-tab', tab);
 
   const dailyBtn = document.getElementById('tab-daily-btn');
   const monthlyBtn = document.getElementById('tab-monthly-btn');
@@ -1171,14 +1178,70 @@ function generateRangeDailyReports() {
   }
 }
 
+// ==========================================
+// INDEPENDENT 4-SECTOR PRINT CONTROLLERS
+// ==========================================
+function printDailyReport() {
+  if (getCurrentUserRole() !== 'admin') {
+    return alert('Access Denied: Printing is restricted to Admin.');
+  }
+  switchTab('daily');
+  setTimeout(() => {
+    window.print();
+  }, 150);
+}
+
+function printMonthlyReport() {
+  if (getCurrentUserRole() !== 'admin') {
+    return alert('Access Denied: Printing is restricted to Admin.');
+  }
+  switchTab('monthly');
+  setTimeout(() => {
+    window.print();
+  }, 150);
+}
+
 function printRangeReports() {
   if (getCurrentUserRole() !== 'admin') {
-    return alert('Access Denied: Printing reports is restricted to Admin.');
+    return alert('Access Denied: Printing is restricted to Admin.');
   }
   switchTab('reports');
   setTimeout(() => {
     window.print();
-  }, 200);
+  }, 150);
+}
+
+function printGrandTotalReport() {
+  if (getCurrentUserRole() !== 'admin') {
+    return alert('Access Denied: Printing is restricted to Admin.');
+  }
+  switchTab('total');
+  setTimeout(() => {
+    window.print();
+  }, 150);
+}
+
+function printCurrentTab() {
+  if (getCurrentUserRole() !== 'admin') {
+    return alert('Access Denied: Printing is restricted to Admin.');
+  }
+
+  const dailySec = document.getElementById('tab-daily');
+  const monthlySec = document.getElementById('tab-monthly');
+  const reportsSec = document.getElementById('tab-reports');
+  const totalSec = document.getElementById('tab-total');
+
+  if (dailySec && !dailySec.classList.contains('hidden')) {
+    printDailyReport();
+  } else if (monthlySec && !monthlySec.classList.contains('hidden')) {
+    printMonthlyReport();
+  } else if (reportsSec && !reportsSec.classList.contains('hidden')) {
+    printRangeReports();
+  } else if (totalSec && !totalSec.classList.contains('hidden')) {
+    printGrandTotalReport();
+  } else {
+    window.print();
+  }
 }
 
 function renderGrandTotalView() {

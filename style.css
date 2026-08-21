@@ -69,16 +69,38 @@ body.role-staff .staff-hide {
   display: none !important;
 }
 
-/* COMPACT MULTI-DATE PRINT STYLING */
+/* ==========================================
+   ENHANCED INDEPENDENT 4-SECTOR PRINT STYLING
+   ========================================== */
+@page {
+  size: auto;
+  margin: 8mm 6mm;
+}
+
 @media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   body {
     background: #ffffff !important;
-    color: #000000 !important;
+    color: #0f172a !important;
     padding-bottom: 0 !important;
     font-size: 11px !important;
   }
 
-  .no-print, header, #login-modal, #edit-product-modal {
+  .no-print,
+  header,
+  #login-modal,
+  #edit-product-modal,
+  #restore-modal,
+  #password-modal {
+    display: none !important;
+  }
+
+  /* Inactive tabs will be properly hidden */
+  .hidden {
     display: none !important;
   }
 
@@ -88,18 +110,71 @@ body.role-staff .staff-hide {
     width: 100% !important;
   }
 
-  #tab-reports {
+  /* General Table & Row Print Behavior */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  th, td {
+    padding: 6px 8px !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+  }
+
+  .card-shadow, .shadow-sm, .shadow-md, .shadow-lg, .shadow-2xl {
+    box-shadow: none !important;
+  }
+
+  /* TAB 1: DAILY SECTOR PRINT */
+  #tab-daily .grid.grid-cols-1.lg\\:grid-cols-3 {
     display: block !important;
   }
 
-  #tab-daily, #tab-monthly, #tab-total {
-    display: none !important;
+  #tab-daily .daily-summary-print-card {
+    margin-bottom: 14px !important;
+    border: 1px solid #cbd5e1 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
+  #tbody-daily-sales input[type="number"] {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    font-weight: 900 !important;
+    color: #0f172a !important;
+    width: auto !important;
+  }
+
+  /* TAB 2: MONTHLY SECTOR PRINT */
+  #tab-monthly .monthly-stats-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 8px !important;
+    margin-bottom: 14px !important;
+  }
+
+  #tab-monthly .monthly-stat-card {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    border: 1px solid #cbd5e1 !important;
+    padding: 10px !important;
+  }
+
+  /* TAB 3: RANGE REPORTS PRINT */
   #range-reports-container {
     display: grid !important;
     grid-template-columns: repeat(2, 1fr) !important;
-    gap: 12px !important;
+    gap: 10px !important;
   }
 
   .daily-report-card {
@@ -109,5 +184,20 @@ body.role-staff .staff-hide {
     box-shadow: none !important;
     border-radius: 8px !important;
     margin-bottom: 8px !important;
+  }
+
+  /* TAB 4: GRAND TOTAL SECTOR PRINT */
+  #tab-total .grand-stats-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 8px !important;
+    margin-bottom: 14px !important;
+  }
+
+  #tab-total .grand-stat-card {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    border: 1px solid #cbd5e1 !important;
+    padding: 10px !important;
   }
 }
