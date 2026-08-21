@@ -142,8 +142,7 @@ body.role-staff .staff-hide {
   #login-modal,
   #edit-product-modal,
   #restore-modal,
-  #password-modal,
-  #sheet-config-modal {
+  #password-modal {
     display: none !important;
   }
 
