@@ -127,6 +127,10 @@ function applyRolePermissions() {
       badge.innerHTML = `<i class="fa-solid fa-shield-halved"></i> <span id="role-badge-text" class="hidden sm:inline">Admin</span>`;
     }
     adminElements.forEach(el => {
+      // Tab container divs must only be displayed when activated via switchTab()
+      if (el.id === 'tab-monthly' || el.id === 'tab-reports' || el.id === 'tab-total') {
+        return;
+      }
       if (!el.classList.contains('custom-keep-hidden')) {
         el.classList.remove('hidden');
       }
@@ -140,8 +144,10 @@ function applyRolePermissions() {
     adminElements.forEach(el => {
       el.classList.add('hidden');
     });
-    switchTab('daily');
   }
+
+  const currentTab = getActiveTabName();
+  switchTab(currentTab || 'daily');
 }
 
 // SECURE LOGIN & AUTHENTICATION
