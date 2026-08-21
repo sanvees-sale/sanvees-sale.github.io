@@ -289,21 +289,52 @@
               <div class="bg-amber-300 border border-amber-400 text-center py-2 px-3 rounded-xl font-black text-xs sm:text-sm md:text-base uppercase mb-2.5 sm:mb-3 tracking-wide shadow-sm text-amber-900">SANVEE'S DAILY SALE</div>
               <div id="summary-header-date" class="bg-rose-100 text-rose-800 border border-rose-200 text-center py-1.5 px-3 rounded-lg font-bold text-xs mb-3 sm:mb-4 shadow-sm">Date: --</div>
               
-              <!-- Boosting cost edit (Admin Only) -->
-              <div class="admin-only mb-3 sm:mb-4 no-print bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-                <label class="block text-[11px] font-bold text-slate-600 mb-1.5">Daily Boosting Cost (৳):</label>
-                <input type="number" id="input-daily-costing" value="0" min="0" class="w-full border border-slate-200 rounded-lg p-2.5 text-right font-black text-xs sm:text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all">
+              <!-- Daily Operational Entries (Total Sale & Boosting Cost) -->
+              <div class="mb-3 sm:mb-4 no-print space-y-2">
+                <div class="bg-emerald-50/80 p-2.5 rounded-xl border border-emerald-200 shadow-xs">
+                  <label class="block text-[10px] font-extrabold text-emerald-800 mb-1 uppercase tracking-wider flex items-center gap-1">
+                    <i class="fa-solid fa-sack-dollar text-emerald-600"></i> Total Sale Amount (৳)
+                  </label>
+                  <input type="number" id="input-daily-total-sale" placeholder="0" min="0" class="w-full border border-emerald-300 rounded-lg p-2 text-right font-black text-xs sm:text-sm text-emerald-950 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all bg-white">
+                </div>
+
+                <!-- Boosting cost edit (Admin Only) -->
+                <div class="admin-only bg-white p-2.5 rounded-xl border border-slate-200 shadow-xs">
+                  <label class="block text-[10px] font-bold text-slate-600 mb-1 flex items-center gap-1">
+                    <i class="fa-solid fa-bullhorn text-amber-500"></i> Daily Boosting Cost (৳):
+                  </label>
+                  <input type="number" id="input-daily-costing" value="0" min="0" class="w-full border border-slate-200 rounded-lg p-2 text-right font-black text-xs sm:text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all">
+                </div>
               </div>
 
               <!-- Metrics Breakdown -->
               <div class="border border-slate-200 rounded-xl overflow-hidden bg-white text-xs sm:text-sm font-semibold divide-y divide-slate-100 shadow-sm">
-                <div class="flex justify-between p-2.5 sm:p-3 bg-slate-50/50 text-slate-600"><span>Quantity</span><span id="summary-qty" class="font-extrabold text-xs sm:text-sm text-slate-900">0 Pcs</span></div>
+                <div class="flex justify-between p-2.5 sm:p-3 bg-emerald-50/60 font-black text-emerald-900">
+                  <span class="flex items-center gap-1.5"><i class="fa-solid fa-sack-dollar text-emerald-600"></i> Total Sale Amount</span>
+                  <span id="summary-total-sale-amount" class="font-extrabold text-xs sm:text-sm text-emerald-700">৳ 0</span>
+                </div>
+                <div class="flex justify-between p-2.5 sm:p-3 bg-slate-50/50 text-slate-600">
+                  <span>Product Quantity</span>
+                  <span id="summary-qty" class="font-extrabold text-xs sm:text-sm text-slate-900">0 Pcs</span>
+                </div>
                 
                 <!-- Financial details (Admin Only) -->
-                <div class="admin-only flex justify-between p-2.5 sm:p-3 text-slate-600"><span>Gross Profit</span><span id="summary-gross-profit" class="font-extrabold text-xs sm:text-sm text-slate-900">৳ 0</span></div>
-                <div class="admin-only flex justify-between p-2.5 sm:p-3 bg-slate-50/50 text-slate-600"><span>Costing</span><span id="summary-costing" class="font-extrabold text-xs sm:text-sm text-rose-600">৳ 0</span></div>
-                <div class="admin-only flex justify-between p-2.5 sm:p-3 text-slate-600"><span>Per Product Cost</span><span id="summary-per-product-cost" class="font-extrabold text-xs sm:text-sm text-slate-900">৳ 0</span></div>
-                <div class="admin-only flex justify-between p-2.5 sm:p-3 bg-amber-100/50 font-black text-xs sm:text-sm border-t border-amber-200 text-amber-900"><span>Total Profit</span><span id="summary-total-profit" class="font-extrabold text-xs sm:text-sm text-rose-600">৳ 0</span></div>
+                <div class="admin-only flex justify-between p-2.5 sm:p-3 text-slate-600">
+                  <span>Gross Profit</span>
+                  <span id="summary-gross-profit" class="font-extrabold text-xs sm:text-sm text-slate-900">৳ 0</span>
+                </div>
+                <div class="admin-only flex justify-between p-2.5 sm:p-3 bg-slate-50/50 text-slate-600">
+                  <span>Costing</span>
+                  <span id="summary-costing" class="font-extrabold text-xs sm:text-sm text-rose-600">৳ 0</span>
+                </div>
+                <div class="admin-only flex justify-between p-2.5 sm:p-3 text-slate-600">
+                  <span>Per Product Cost</span>
+                  <span id="summary-per-product-cost" class="font-extrabold text-xs sm:text-sm text-slate-900">৳ 0</span>
+                </div>
+                <div class="admin-only flex justify-between p-2.5 sm:p-3 bg-amber-100/50 font-black text-xs sm:text-sm border-t border-amber-200 text-amber-900">
+                  <span>Net Profit</span>
+                  <span id="summary-total-profit" class="font-extrabold text-xs sm:text-sm text-slate-950">৳ 0</span>
+                </div>
               </div>
 
               <!-- ACTION BUTTONS (ADMIN ONLY) -->
@@ -372,11 +403,12 @@
         <div class="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 sm:gap-5">
           <div>
             <h2 class="text-sm sm:text-base font-extrabold text-slate-900 tracking-wide">Automatic Monthly Summary Report</h2>
-            <p class="text-[11px] text-slate-500 mt-0.5 sm:mt-1 font-medium">Filter by month or select a specific date to edit costing & breakdown</p>
+            <p class="text-[11px] text-slate-500 mt-0.5 sm:mt-1 font-medium">Filter by month or select a specific date to edit Total Sale & costing</p>
           </div>
           
-          <!-- FILTERS & COSTING EDIT AREA -->
-          <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-end gap-2 sm:gap-3 w-full lg:w-auto no-print">
+          <!-- FILTERS & DATE-WISE EDIT AREA -->
+          <!-- FILTERS & DATE-WISE EDIT AREA -->
+          <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-end gap-2 sm:gap-2.5 w-full lg:w-auto no-print">
             <div>
               <label class="block text-[10px] font-extrabold text-slate-500 mb-1 uppercase tracking-wider">Select Month</label>
               <input type="month" id="input-monthly-filter" class="w-full sm:w-auto border border-slate-200 rounded-xl p-2 sm:p-2.5 text-xs font-bold text-slate-900 bg-amber-50/50 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all cursor-pointer">
@@ -387,32 +419,56 @@
               <input type="date" id="input-monthly-date-filter" class="w-full sm:w-auto border border-slate-200 rounded-xl p-2 sm:p-2.5 text-xs font-bold text-slate-900 bg-indigo-50/30 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all cursor-pointer">
             </div>
 
-            <!-- EDIT COSTING FOR SELECTED DATE -->
-            <div id="wrapper-monthly-cost-edit" class="col-span-2 sm:col-span-1 bg-rose-50 p-2 sm:p-2.5 rounded-xl border border-rose-100 flex flex-col">
-              <label class="block text-[10px] font-extrabold text-rose-700 mb-1 uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-pen text-[8px]"></i> Edit Date Costing (৳)</label>
-              <input type="number" id="input-monthly-cost-edit" min="0" placeholder="0" class="w-full sm:w-32 border border-rose-200 rounded-lg p-1.5 text-xs font-black text-rose-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition-all bg-white">
+            <!-- EDIT TOTAL SALE FOR SELECTED DATE -->
+            <div id="wrapper-monthly-sale-edit" class="bg-emerald-50 p-2 rounded-xl border border-emerald-100 flex flex-col">
+              <label class="block text-[9px] font-extrabold text-emerald-800 mb-1 uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-sack-dollar text-[8px]"></i> Total Sale (৳)</label>
+              <input type="number" id="input-monthly-sale-edit" min="0" placeholder="0" class="w-full sm:w-28 border border-emerald-200 rounded-lg p-1.5 text-xs font-black text-emerald-950 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all bg-white">
             </div>
 
-            <div class="col-span-2 sm:col-span-auto flex items-center gap-1.5 sm:gap-2">
-              <button type="button" onclick="printMonthlyReport()" class="flex-1 sm:flex-initial bg-amber-500 hover:bg-amber-600 text-slate-900 font-extrabold px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer">
+            <!-- EDIT COSTING FOR SELECTED DATE -->
+            <div id="wrapper-monthly-cost-edit" class="bg-rose-50 p-2 rounded-xl border border-rose-100 flex flex-col">
+              <label class="block text-[9px] font-extrabold text-rose-700 mb-1 uppercase tracking-wider flex items-center gap-1"><i class="fa-solid fa-pen text-[8px]"></i> Costing (৳)</label>
+              <input type="number" id="input-monthly-cost-edit" min="0" placeholder="0" class="w-full sm:w-24 border border-rose-200 rounded-lg p-1.5 text-xs font-black text-rose-900 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-200 transition-all bg-white">
+            </div>
+
+            <div class="col-span-2 sm:col-span-auto flex items-center gap-1.5">
+              <button type="button" onclick="printMonthlyReport()" class="flex-1 sm:flex-initial bg-amber-500 hover:bg-amber-600 text-slate-900 font-extrabold px-3 sm:px-3.5 py-2 sm:py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer">
                 <i class="fa-solid fa-print"></i> Print Monthly
               </button>
-              <button type="button" onclick="clearDateFilter()" title="Show all days of month" class="flex-1 sm:flex-initial bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 active:scale-95 font-bold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer">
+              <button type="button" onclick="clearDateFilter()" title="Show all days of month" class="flex-1 sm:flex-initial bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 active:scale-95 font-bold px-3 py-2 sm:py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer">
                 <i class="fa-solid fa-filter-circle-xmark"></i> All Days
               </button>
-              <button type="button" onclick="resetDayWiseData()" class="bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white border border-rose-200 active:scale-95 font-bold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer">
+              <button type="button" onclick="resetDayWiseData()" class="bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white border border-rose-200 active:scale-95 font-bold px-3 py-2 sm:py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer">
                 <i class="fa-solid fa-rotate-left"></i> Reset
               </button>
             </div>
           </div>
         </div>
         
-        <!-- STATS CARDS -->
-        <div class="monthly-stats-grid grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
-          <div class="monthly-stat-card bg-slate-900 text-white p-3.5 sm:p-5 rounded-2xl shadow-md border-b-4 border-amber-500 transform hover:-translate-y-1 transition-transform"><p class="text-[10px] sm:text-[11px] text-slate-400 font-bold uppercase tracking-wider">Total Quantity</p><p id="m-stat-qty" class="text-xl sm:text-2xl lg:text-3xl font-black mt-1 text-amber-400 truncate">0 Pcs</p></div>
-          <div class="monthly-stat-card bg-white text-slate-900 p-3.5 sm:p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md border-b-4 border-indigo-500 transform hover:-translate-y-1 transition-all"><p class="text-[10px] sm:text-[11px] text-slate-500 font-bold uppercase tracking-wider">Gross Profit</p><p id="m-stat-gross" class="text-xl sm:text-2xl lg:text-3xl font-black mt-1 text-indigo-600 truncate">৳ 0</p></div>
-          <div class="monthly-stat-card bg-white text-slate-900 p-3.5 sm:p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md border-b-4 border-rose-500 transform hover:-translate-y-1 transition-all"><p class="text-[10px] sm:text-[11px] text-slate-500 font-bold uppercase tracking-wider">Costing</p><p id="m-stat-costing" class="text-xl sm:text-2xl lg:text-3xl font-black mt-1 text-rose-500 truncate">৳ 0</p></div>
-          <div class="monthly-stat-card bg-gradient-to-br from-amber-400 to-amber-500 text-slate-950 p-3.5 sm:p-5 rounded-2xl shadow-md border-b-4 border-slate-900 transform hover:-translate-y-1 transition-all"><p class="text-[10px] sm:text-[11px] font-extrabold text-amber-900 uppercase tracking-wider">Net Profit</p><p id="m-stat-net" class="text-xl sm:text-2xl lg:text-3xl font-black mt-1 text-slate-950 truncate">৳ 0</p></div>
+        <!-- STATS CARDS (DEDICATED TOTAL SALE CARD) -->
+        <div class="monthly-stats-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-4">
+          <div class="monthly-stat-card bg-emerald-700 text-white p-3.5 sm:p-5 rounded-2xl shadow-md border-b-4 border-emerald-400 transform hover:-translate-y-1 transition-transform">
+            <p class="text-[10px] sm:text-[11px] text-emerald-100 font-extrabold uppercase tracking-wider flex items-center gap-1">
+              <i class="fa-solid fa-sack-dollar"></i> Total Sale Amount
+            </p>
+            <p id="m-stat-sale" class="text-xl sm:text-2xl lg:text-3xl font-black mt-1 text-white truncate">৳ 0</p>
+          </div>
+          <div class="monthly-stat-card bg-slate-900 text-white p-3.5 sm:p-5 rounded-2xl shadow-md border-b-4 border-amber-500 transform hover:-translate-y-1 transition-transform">
+            <p class="text-[10px] sm:text-[11px] text-slate-400 font-bold uppercase tracking-wider">Total Quantity</p>
+            <p id="m-stat-qty" class="text-xl sm:text-2xl lg:text-3xl font-black mt-1 text-amber-400 truncate">0 Pcs</p>
+          </div>
+          <div class="monthly-stat-card bg-white text-slate-900 p-3.5 sm:p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md border-b-4 border-indigo-500 transform hover:-translate-y-1 transition-all">
+            <p class="text-[10px] sm:text-[11px] text-slate-500 font-bold uppercase tracking-wider">Gross Profit</p>
+            <p id="m-stat-gross" class="text-xl sm:text-2xl lg:text-3xl font-black mt-1 text-indigo-600 truncate">৳ 0</p>
+          </div>
+          <div class="monthly-stat-card bg-white text-slate-900 p-3.5 sm:p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md border-b-4 border-rose-500 transform hover:-translate-y-1 transition-all">
+            <p class="text-[10px] sm:text-[11px] text-slate-500 font-bold uppercase tracking-wider">Costing</p>
+            <p id="m-stat-costing" class="text-xl sm:text-2xl lg:text-3xl font-black mt-1 text-rose-500 truncate">৳ 0</p>
+          </div>
+          <div class="monthly-stat-card bg-gradient-to-br from-amber-400 to-amber-500 text-slate-950 p-3.5 sm:p-5 rounded-2xl shadow-md border-b-4 border-slate-900 transform hover:-translate-y-1 transition-all">
+            <p class="text-[10px] sm:text-[11px] font-extrabold text-amber-900 uppercase tracking-wider">Net Profit</p>
+            <p id="m-stat-net" class="text-xl sm:text-2xl lg:text-3xl font-black mt-1 text-slate-950 truncate">৳ 0</p>
+          </div>
         </div>
 
         <!-- MONTHLY BREAKDOWN TABLE -->
@@ -488,10 +544,11 @@
           </div>
           <div class="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap gap-2.5 sm:gap-4 text-xs font-bold md:divide-x md:divide-slate-700 w-full md:w-auto">
             <div class="md:pl-3"><span class="text-slate-400 block text-[9px] sm:text-[10px] uppercase">Active Days</span><span id="range-total-days" class="text-amber-400 font-black text-xs sm:text-sm">0 Days</span></div>
+            <div class="md:pl-3"><span class="text-emerald-400 block text-[9px] sm:text-[10px] uppercase">Total Sale</span><span id="range-total-sale" class="text-emerald-300 font-black text-xs sm:text-sm">৳ 0</span></div>
             <div class="md:pl-3"><span class="text-slate-400 block text-[9px] sm:text-[10px] uppercase">Total Quantity</span><span id="range-total-qty" class="text-white font-black text-xs sm:text-sm">0 Pcs</span></div>
             <div class="md:pl-3"><span class="text-slate-400 block text-[9px] sm:text-[10px] uppercase">Gross Profit</span><span id="range-total-gross" class="text-indigo-400 font-black text-xs sm:text-sm">৳ 0</span></div>
             <div class="md:pl-3"><span class="text-slate-400 block text-[9px] sm:text-[10px] uppercase">Total Costing</span><span id="range-total-cost" class="text-rose-400 font-black text-xs sm:text-sm">৳ 0</span></div>
-            <div class="col-span-2 sm:col-span-1 md:pl-3"><span class="text-slate-400 block text-[9px] sm:text-[10px] uppercase">Net Profit</span><span id="range-total-net" class="text-emerald-400 font-black text-sm sm:text-base">৳ 0</span></div>
+            <div class="col-span-2 sm:col-span-1 md:pl-3"><span class="text-slate-400 block text-[9px] sm:text-[10px] uppercase">Net Profit</span><span id="range-total-net" class="text-amber-400 font-black text-sm sm:text-base">৳ 0</span></div>
           </div>
         </div>
 
@@ -521,23 +578,29 @@
           </div>
         </div>
 
-        <!-- GRAND TOTAL CARDS -->
-        <div class="grand-stats-grid grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+        <!-- GRAND TOTAL CARDS (DEDICATED GRAND TOTAL SALE CARD) -->
+        <div class="grand-stats-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-4">
+          <div class="grand-stat-card bg-emerald-700 text-white p-4 sm:p-6 rounded-2xl shadow-md border-b-4 border-emerald-400 transform hover:-translate-y-1 transition-all">
+            <p class="text-[10px] sm:text-[11px] text-emerald-200 font-extrabold uppercase tracking-wider flex items-center gap-1">
+              <i class="fa-solid fa-sack-dollar"></i> Grand Total Sale
+            </p>
+            <p id="g-stat-sale" class="text-xl sm:text-3xl lg:text-4xl font-black mt-1 sm:mt-2 text-white tracking-tight truncate">৳ 0</p>
+          </div>
           <div class="grand-stat-card bg-slate-900 text-white p-4 sm:p-6 rounded-2xl shadow-md border-b-4 border-amber-500 transform hover:-translate-y-1 transition-all">
             <p class="text-[10px] sm:text-[11px] text-slate-400 font-bold uppercase tracking-wider">Grand Quantity</p>
             <p id="g-stat-qty" class="text-xl sm:text-3xl lg:text-4xl font-black mt-1 sm:mt-2 text-amber-400 tracking-tight truncate">0 Pcs</p>
           </div>
-          <div class="grand-stat-card bg-white text-slate-900 p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md border-b-4 border-emerald-500 transform hover:-translate-y-1 transition-all">
+          <div class="grand-stat-card bg-white text-slate-900 p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md border-b-4 border-indigo-500 transform hover:-translate-y-1 transition-all">
             <p class="text-[10px] sm:text-[11px] text-slate-500 font-bold uppercase tracking-wider">Grand Gross Profit</p>
-            <p id="g-stat-gross" class="text-xl sm:text-3xl lg:text-4xl font-black mt-1 sm:mt-2 text-emerald-500 tracking-tight truncate">৳ 0</p>
+            <p id="g-stat-gross" class="text-xl sm:text-3xl lg:text-4xl font-black mt-1 sm:mt-2 text-indigo-600 tracking-tight truncate">৳ 0</p>
           </div>
           <div class="grand-stat-card bg-white text-slate-900 p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md border-b-4 border-rose-500 transform hover:-translate-y-1 transition-all">
             <p class="text-[10px] sm:text-[11px] text-slate-500 font-bold uppercase tracking-wider">Grand Total Costing</p>
             <p id="g-stat-costing" class="text-xl sm:text-3xl lg:text-4xl font-black mt-1 sm:mt-2 text-rose-500 tracking-tight truncate">৳ 0</p>
           </div>
-          <div class="grand-stat-card bg-gradient-to-br from-slate-900 to-slate-800 text-white p-4 sm:p-6 rounded-2xl shadow-lg border-b-4 border-amber-400 transform hover:-translate-y-1 transition-all">
-            <p class="text-[10px] sm:text-[11px] text-amber-400 font-extrabold uppercase tracking-wider">Grand Net Profit</p>
-            <p id="g-stat-net" class="text-xl sm:text-3xl lg:text-4xl font-black mt-1 sm:mt-2 text-white tracking-tight truncate">৳ 0</p>
+          <div class="grand-stat-card bg-gradient-to-br from-amber-400 to-amber-500 text-slate-950 p-4 sm:p-6 rounded-2xl shadow-lg border-b-4 border-slate-900 transform hover:-translate-y-1 transition-all">
+            <p class="text-[10px] sm:text-[11px] text-amber-950 font-extrabold uppercase tracking-wider">Grand Net Profit</p>
+            <p id="g-stat-net" class="text-xl sm:text-3xl lg:text-4xl font-black mt-1 sm:mt-2 text-slate-950 tracking-tight truncate">৳ 0</p>
           </div>
         </div>
 

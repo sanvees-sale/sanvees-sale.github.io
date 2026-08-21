@@ -16,9 +16,19 @@ const db = firebase.database();
 let products = [];
 let sales = [];
 let dailyCosts = {};
+let dailyTotalSales = {};
 let selectedProdId = null;
 let undoStack = [];
 let parsedRestoreData = null;
+
+// Debounce helper for instant UI response and smooth network sync
+function debounce(func, wait) {
+  let timeout;
+  return function(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), wait);
+  };
+}
 
 // Dynamic Cloud Auth Credentials (synced from Firebase /systemAuth)
 let authCredentials = {
@@ -72,6 +82,28 @@ function getRecordGross(s, prod) {
   return 0;
 }
 
+// Unified Date-wise Total Sale Helper
+function getDayTotalSale(dateStr) {
+  if (!dateStr) return 0;
+  if (dailyTotalSales[dateStr] !== undefined && dailyTotalSales[dateStr] !== null && dailyTotalSales[dateStr] !== '') {
+    const val = parseFloat(dailyTotalSales[dateStr]);
+    if (!isNaN(val)) return val;
+  }
+  // Auto-calculate from itemized product sales for that day if not manually entered
+  const daySales = sales.filter(s => s.date === dateStr);
+  let sum = 0;
+  daySales.forEach(s => {
+    const q = getRecordQty(s);
+    if (q > 0) {
+      let pId = String(s.productId || (s.id ? s.id.split('_')[1] : ''));
+      const prod = products.find(p => String(p.id) === pId);
+      const sellPrice = (prod && typeof prod.selling === 'number') ? prod.selling : (typeof s.selling === 'number' ? s.selling : 0);
+      sum += (sellPrice * q);
+    }
+  });
+  return sum;
+}
+
 // ROLE MANAGEMENT
 function getCurrentUserRole() {
   const storedRole = sessionStorage.getItem('userRole');
@@ -85,64 +117,98 @@ function getCurrentUserRole() {
 function applyRolePermissions() {
   const role = getCurrentUserRole();
   const badgeText = document.getElementById('role-badge-text');
-  const badgeEl = document.getElementById('header-role-badge');
-  const body = document.body;
-
-  body.classList.remove('role-admin', 'role-staff');
+  const badge = document.getElementById('header-role-badge');
+  const adminElements = document.querySelectorAll('.admin-only');
 
   if (role === 'admin') {
-    body.classList.add('role-admin');
-    if (badgeText) badgeText.innerText = 'Admin (Full Access)';
-    if (badgeEl) {
-      badgeEl.className = 'px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm bg-amber-500/20 text-amber-400 border border-amber-500/30';
+    if (badgeText) badgeText.innerText = 'Admin';
+    if (badge) {
+      badge.className = "px-2 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-black flex items-center gap-1 shadow-sm bg-slate-800 border border-slate-700 text-amber-400";
+      badge.innerHTML = `<i class="fa-solid fa-shield-halved"></i> <span id="role-badge-text" class="hidden sm:inline">Admin</span>`;
     }
+    adminElements.forEach(el => {
+      if (!el.classList.contains('custom-keep-hidden')) {
+        el.classList.remove('hidden');
+      }
+    });
   } else {
-    body.classList.add('role-staff');
-    if (badgeText) badgeText.innerText = 'Staff (Daily Entry Only)';
-    if (badgeEl) {
-      badgeEl.className = 'px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm bg-indigo-500/20 text-indigo-300 border border-indigo-500/30';
+    if (badgeText) badgeText.innerText = 'Staff';
+    if (badge) {
+      badge.className = "px-2 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-black flex items-center gap-1 shadow-sm bg-indigo-900/80 border border-indigo-700 text-indigo-200";
+      badge.innerHTML = `<i class="fa-solid fa-user-shield"></i> <span id="role-badge-text" class="hidden sm:inline">Staff</span>`;
     }
-    // Force staff to daily entry tab
+    adminElements.forEach(el => {
+      el.classList.add('hidden');
+    });
     switchTab('daily');
   }
 }
 
-// AUTH LOGIN SYSTEM (Checked against cloud dynamic passwords)
-document.getElementById('form-login').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const user = document.getElementById('login-username').value.trim();
-  const pass = document.getElementById('login-password').value.trim();
+// SECURE LOGIN & AUTHENTICATION
+const loginForm = document.getElementById('form-login');
+if (loginForm) {
+  loginForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const userInput = document.getElementById('login-username');
+    const role = userInput ? userInput.value.trim().toLowerCase() : 'admin';
+    const pass = document.getElementById('login-password').value.trim();
+    const errorEl = document.getElementById('login-error');
 
-  if (user === 'admin' && pass === authCredentials.admin) {
-    sessionStorage.setItem('isLoggedIn', 'true');
-    sessionStorage.setItem('userRole', 'admin');
-    checkAuth();
-  } else if (user === 'staff' && pass === authCredentials.staff) {
-    sessionStorage.setItem('isLoggedIn', 'true');
-    sessionStorage.setItem('userRole', 'staff');
-    checkAuth();
-  } else {
-    document.getElementById('login-error').classList.remove('hidden');
-  }
-});
+    const validAdminPass = authCredentials.admin || "project420";
+    const validStaffPass = authCredentials.staff || "staff123";
 
-function checkAuth() {
-  const loggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
-  if (loggedIn) {
-    document.getElementById('login-modal').classList.add('hidden');
-    document.getElementById('app-content').classList.remove('hidden');
-    applyRolePermissions();
-    initCloudSync();
-  } else {
-    document.getElementById('login-modal').classList.remove('hidden');
-    document.getElementById('app-content').classList.add('hidden');
-  }
+    if (role === 'admin' && pass === validAdminPass) {
+      sessionStorage.setItem('isLoggedIn', 'true');
+      sessionStorage.setItem('userRole', 'admin');
+      const loginModal = document.getElementById('login-modal');
+      if (loginModal) loginModal.classList.add('hidden');
+      const authOverlay = document.getElementById('auth-overlay');
+      if (authOverlay) authOverlay.classList.add('hidden');
+      document.getElementById('app-content').classList.remove('hidden');
+      if (errorEl) errorEl.classList.add('hidden');
+      document.getElementById('login-password').value = '';
+      applyRolePermissions();
+      initCloudSync();
+      switchTab('daily');
+    } else if (role === 'staff' && pass === validStaffPass) {
+      sessionStorage.setItem('isLoggedIn', 'true');
+      sessionStorage.setItem('userRole', 'staff');
+      const loginModal = document.getElementById('login-modal');
+      if (loginModal) loginModal.classList.add('hidden');
+      const authOverlay = document.getElementById('auth-overlay');
+      if (authOverlay) authOverlay.classList.add('hidden');
+      document.getElementById('app-content').classList.remove('hidden');
+      if (errorEl) errorEl.classList.add('hidden');
+      document.getElementById('login-password').value = '';
+      applyRolePermissions();
+      initCloudSync();
+      switchTab('daily');
+    } else {
+      if (errorEl) {
+        errorEl.innerText = 'Invalid username or password!';
+        errorEl.classList.remove('hidden');
+      }
+    }
+  });
 }
 
 function handleLogout() {
   sessionStorage.removeItem('isLoggedIn');
   sessionStorage.removeItem('userRole');
-  checkAuth();
+  location.reload();
+}
+
+function checkAuth() {
+  if (sessionStorage.getItem('isLoggedIn') === 'true') {
+    const loginModal = document.getElementById('login-modal');
+    if (loginModal) loginModal.classList.add('hidden');
+    const authOverlay = document.getElementById('auth-overlay');
+    if (authOverlay) authOverlay.classList.add('hidden');
+    document.getElementById('app-content').classList.remove('hidden');
+    applyRolePermissions();
+    initCloudSync();
+    switchTab('daily');
+  }
 }
 
 checkAuth();
@@ -161,11 +227,12 @@ function exportDatabaseToJson() {
       meta: {
         appName: "Sanvee POS & Profit Tracker",
         exportedAt: new Date().toISOString(),
-        version: "2.0"
+        version: "2.2"
       },
       products: rawData.products || {},
       sales: rawData.sales || {},
       dailyCosts: rawData.dailyCosts || {},
+      dailyTotalSales: rawData.dailyTotalSales || {},
       systemAuth: rawData.systemAuth || { admin: "project420", staff: "staff123" }
     };
 
@@ -220,7 +287,6 @@ function previewBackupFile(e) {
     try {
       const data = JSON.parse(evt.target.result);
       
-      // Support both structured backups (with meta) and raw Firebase exports
       const prods = data.products ? (Array.isArray(data.products) ? data.products : Object.values(data.products)) : [];
       const sls = data.sales ? (Array.isArray(data.sales) ? data.sales : Object.values(data.sales)) : [];
       const costs = data.dailyCosts ? Object.keys(data.dailyCosts) : [];
@@ -255,6 +321,7 @@ function executeDatabaseRestore() {
   if (parsedRestoreData.products) updates['products'] = parsedRestoreData.products;
   if (parsedRestoreData.sales) updates['sales'] = parsedRestoreData.sales;
   if (parsedRestoreData.dailyCosts) updates['dailyCosts'] = parsedRestoreData.dailyCosts;
+  if (parsedRestoreData.dailyTotalSales) updates['dailyTotalSales'] = parsedRestoreData.dailyTotalSales;
   if (parsedRestoreData.systemAuth) updates['systemAuth'] = parsedRestoreData.systemAuth;
 
   db.ref('/').update(updates).then(() => {
@@ -286,133 +353,108 @@ function closePasswordModal() {
   }
 }
 
-// Attach globally
-window.openPasswordModal = openPasswordModal;
-window.closePasswordModal = closePasswordModal;
-window.exportDatabaseToJson = exportDatabaseToJson;
-window.openRestoreModal = openRestoreModal;
-window.closeRestoreModal = closeRestoreModal;
-window.previewBackupFile = previewBackupFile;
-window.executeDatabaseRestore = executeDatabaseRestore;
-window.switchTab = switchTab;
-window.handleLogout = handleLogout;
-window.openEditModal = openEditModal;
-window.closeEditModal = closeEditModal;
-window.printDailyReport = printDailyReport;
-window.printMonthlyReport = printMonthlyReport;
-window.printRangeReports = printRangeReports;
-window.printGrandTotalReport = printGrandTotalReport;
-window.printCurrentTab = printCurrentTab;
+document.getElementById('form-change-password').addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (getCurrentUserRole() !== 'admin') {
+    return alert('Access Denied: Only Admin can change passwords.');
+  }
 
-const btnOpenPass = document.getElementById('btn-open-passwords');
-if (btnOpenPass) {
-  btnOpenPass.addEventListener('click', openPasswordModal);
-}
+  const newAdmin = document.getElementById('input-new-admin-pass').value.trim();
+  const newStaff = document.getElementById('input-new-staff-pass').value.trim();
 
-const passModalEl = document.getElementById('password-modal');
-if (passModalEl) {
-  passModalEl.addEventListener('click', (e) => {
-    if (e.target === passModalEl) {
-      closePasswordModal();
-    }
+  if (!newAdmin || !newStaff) {
+    return alert('Please fill in both admin and staff password fields.');
+  }
+
+  db.ref('systemAuth').update({
+    admin: newAdmin,
+    staff: newStaff,
+    updatedAt: new Date().toISOString()
+  }).then(() => {
+    authCredentials.admin = newAdmin;
+    authCredentials.staff = newStaff;
+    alert('✅ Credentials successfully updated in cloud database!');
+    closePasswordModal();
+  }).catch(err => {
+    alert('Error updating passwords: ' + err.message);
   });
+});
+
+// ACTIVE TAB MANAGER FOR SMOOTH RENDERING
+function getActiveTabName() {
+  return document.body.getAttribute('data-active-tab') || 'daily';
 }
 
-const restoreModalEl = document.getElementById('restore-modal');
-if (restoreModalEl) {
-  restoreModalEl.addEventListener('click', (e) => {
-    if (e.target === restoreModalEl) {
-      closeRestoreModal();
-    }
-  });
+function refreshActiveView() {
+  const activeTab = getActiveTabName();
+  const role = getCurrentUserRole();
+
+  if (activeTab === 'daily') {
+    renderDailyView();
+  } else if (activeTab === 'monthly' && role === 'admin') {
+    renderMonthlyView();
+  } else if (activeTab === 'reports' && role === 'admin') {
+    generateRangeDailyReports();
+  } else if (activeTab === 'total' && role === 'admin') {
+    renderGrandTotalView();
+  }
 }
 
-const editModalEl = document.getElementById('edit-product-modal');
-if (editModalEl) {
-  editModalEl.addEventListener('click', (e) => {
-    if (e.target === editModalEl) {
-      closeEditModal();
-    }
-  });
-}
-
-const formChangePass = document.getElementById('form-change-password');
-if (formChangePass) {
-  formChangePass.addEventListener('submit', (e) => {
-    e.preventDefault();
-    if (getCurrentUserRole() !== 'admin') {
-      return alert('Access Denied: Only Admin can change passwords.');
-    }
-
-    const newAdmin = document.getElementById('input-new-admin-pass').value.trim();
-    const newStaff = document.getElementById('input-new-staff-pass').value.trim();
-
-    if (!newAdmin || !newStaff) {
-      return alert('Passwords cannot be empty.');
-    }
-
-    db.ref('systemAuth').set({
-      admin: newAdmin,
-      staff: newStaff,
-      updatedAt: Date.now()
-    }).then(() => {
-      authCredentials.admin = newAdmin;
-      authCredentials.staff = newStaff;
-      alert('✅ Admin & Staff passwords successfully updated in cloud!');
-      closePasswordModal();
-    }).catch(err => {
-      alert('Error updating passwords: ' + err.message);
-    });
-  });
-}
-
+// REALTIME CLOUD SYNC
+let syncInitialized = false;
 function initCloudSync() {
+  if (syncInitialized) return;
+  syncInitialized = true;
+
   db.ref('products').on('value', snap => {
     const data = snap.val();
     products = data ? Object.values(data) : [];
     renderProductSelector();
-    renderDailyView();
-    if (getCurrentUserRole() === 'admin') {
-      renderMonthlyView();
-      renderGrandTotalView();
-      generateRangeDailyReports();
-    }
+    refreshActiveView();
   });
 
   db.ref('sales').on('value', snap => {
     const data = snap.val();
     sales = data ? Object.values(data) : [];
-    renderDailyView();
-    if (getCurrentUserRole() === 'admin') {
-      renderMonthlyView();
-      renderGrandTotalView();
-      generateRangeDailyReports();
-    }
-    if (selectedProdId) {
-      selectProductCard(selectedProdId);
-    }
+    refreshActiveView();
   });
 
   db.ref('dailyCosts').on('value', snap => {
     dailyCosts = snap.val() || {};
     const selectedDate = document.getElementById('input-sale-date').value || getTodayString();
     const costInput = document.getElementById('input-daily-costing');
-    if (costInput) {
+    if (costInput && document.activeElement !== costInput) {
       costInput.value = dailyCosts[selectedDate] || 0;
     }
     
     const mDateFilter = document.getElementById('input-monthly-date-filter');
     if (mDateFilter && mDateFilter.value) {
       const mCostEdit = document.getElementById('input-monthly-cost-edit');
-      if (mCostEdit) mCostEdit.value = dailyCosts[mDateFilter.value] || 0;
+      if (mCostEdit && document.activeElement !== mCostEdit) {
+        mCostEdit.value = dailyCosts[mDateFilter.value] || 0;
+      }
     }
 
-    renderDailyView();
-    if (getCurrentUserRole() === 'admin') {
-      renderMonthlyView();
-      renderGrandTotalView();
-      generateRangeDailyReports();
+    refreshActiveView();
+  });
+
+  db.ref('dailyTotalSales').on('value', snap => {
+    dailyTotalSales = snap.val() || {};
+    const selectedDate = document.getElementById('input-sale-date').value || getTodayString();
+    const saleInput = document.getElementById('input-daily-total-sale');
+    if (saleInput && document.activeElement !== saleInput) {
+      saleInput.value = dailyTotalSales[selectedDate] !== undefined ? dailyTotalSales[selectedDate] : '';
     }
+
+    const mDateFilter = document.getElementById('input-monthly-date-filter');
+    if (mDateFilter && mDateFilter.value) {
+      const mSaleEdit = document.getElementById('input-monthly-sale-edit');
+      if (mSaleEdit && document.activeElement !== mSaleEdit) {
+        mSaleEdit.value = dailyTotalSales[mDateFilter.value] !== undefined ? dailyTotalSales[mDateFilter.value] : '';
+      }
+    }
+
+    refreshActiveView();
   });
 }
 
@@ -494,10 +536,12 @@ function switchTab(tab) {
     dailySec.classList.remove('hidden');
     dailySec.classList.add('fade-in');
     dailyBtn.className = activeBtnClass;
+    renderDailyView();
   } else if (tab === 'monthly' && role === 'admin') {
     monthlySec.classList.remove('hidden');
     monthlySec.classList.add('fade-in');
     monthlyBtn.className = activeBtnClass;
+    renderMonthlyView();
   } else if (tab === 'reports' && role === 'admin') {
     reportsSec.classList.remove('hidden');
     reportsSec.classList.add('fade-in');
@@ -507,29 +551,21 @@ function switchTab(tab) {
     totalSec.classList.remove('hidden');
     totalSec.classList.add('fade-in');
     totalBtn.className = activeBtnClass;
+    renderGrandTotalView();
   }
 }
 
 function clearProductSelection() {
   selectedProdId = null;
   document.getElementById('selected-prod-id').value = '';
-  document.querySelectorAll('.prod-select-card').forEach(c => {
-    c.classList.remove('border-amber-500', 'bg-amber-50', 'ring-2', 'ring-amber-400');
-    c.classList.add('border-slate-100', 'bg-white');
-  });
   document.getElementById('input-sale-qty').value = 1;
-  const btnSubmit = document.getElementById('btn-sale-submit');
-  if (btnSubmit) {
-    btnSubmit.innerHTML = `<i class="fa-solid fa-plus"></i> Add / Update Sale Entry`;
-  }
+  document.getElementById('btn-sale-submit').innerHTML = `<i class="fa-solid fa-plus"></i> Add / Update Sale Entry`;
+  renderProductSelector();
 }
 
-document.addEventListener('click', (e) => {
-  const form = document.getElementById('form-sale-entry');
-  const editModal = document.getElementById('edit-product-modal');
-  const passModal = document.getElementById('password-modal');
-  const restoreModal = document.getElementById('restore-modal');
-  if (selectedProdId && form && !form.contains(e.target) && (!editModal || !editModal.contains(e.target)) && (!passModal || !passModal.contains(e.target)) && (!restoreModal || !restoreModal.contains(e.target))) {
+// Global ESC key to deselect product
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
     clearProductSelection();
   }
 });
@@ -538,7 +574,8 @@ function saveUndoSnapshot(date) {
   const currentSales = sales.filter(s => s.date === date);
   undoStack.push({
     date: date,
-    salesSnapshot: JSON.parse(JSON.stringify(currentSales))
+    salesSnapshot: JSON.parse(JSON.stringify(currentSales)),
+    totalSaleSnapshot: dailyTotalSales[date] !== undefined ? dailyTotalSales[date] : null
   });
 }
 
@@ -554,10 +591,12 @@ function performUndo() {
   lastState.salesSnapshot.forEach(s => {
     db.ref('sales/' + s.id).set(s);
   });
-  renderDailyView();
-  renderMonthlyView();
-  renderGrandTotalView();
-  generateRangeDailyReports();
+  if (lastState.totalSaleSnapshot !== null && lastState.totalSaleSnapshot !== undefined) {
+    db.ref('dailyTotalSales/' + lastState.date).set(lastState.totalSaleSnapshot);
+  } else {
+    db.ref('dailyTotalSales/' + lastState.date).remove();
+  }
+  refreshActiveView();
 }
 
 function saveTodayToMonthly() {
@@ -580,9 +619,7 @@ function saveTodayToMonthly() {
 
   db.ref().update(updates).then(() => {
     alert(`✅ Sales data for ${date} successfully saved to Monthly Report!`);
-    renderMonthlyView();
-    renderGrandTotalView();
-    generateRangeDailyReports();
+    refreshActiveView();
   });
 }
 
@@ -606,18 +643,19 @@ function resetDayWiseData() {
     updates[`sales/${s.id}/monthlyQty`] = 0;
     updates[`sales/${s.id}/monthlyGrossProfit`] = 0;
   });
+  updates[`dailyTotalSales/${targetDate}`] = 0;
 
   db.ref().update(updates).then(() => {
     alert(`✅ Saved data for ${targetDate} successfully reset to 0!`);
-    renderMonthlyView();
-    renderGrandTotalView();
-    generateRangeDailyReports();
+    refreshActiveView();
   });
 }
 
 function clearDateFilter() {
   document.getElementById('input-monthly-date-filter').value = '';
   document.getElementById('input-monthly-cost-edit').value = '';
+  const mSaleEdit = document.getElementById('input-monthly-sale-edit');
+  if (mSaleEdit) mSaleEdit.value = '';
   renderMonthlyView();
 }
 
@@ -628,7 +666,7 @@ function clearTodaySale() {
 
   const date = document.getElementById('input-sale-date').value || todayStr;
   const todaysSales = sales.filter(s => s.date === date);
-  if (todaysSales.length === 0) return alert('No sales recorded for this date!');
+  if (todaysSales.length === 0 && !dailyTotalSales[date]) return alert('No sales recorded for this date!');
 
   if (confirm('Reset daily sales for this date to 0?')) {
     saveUndoSnapshot(date);
@@ -639,6 +677,7 @@ function clearTodaySale() {
       updates[`sales/${s.id}/monthlyQty`] = 0;
       updates[`sales/${s.id}/monthlyGrossProfit`] = 0;
     });
+    updates[`dailyTotalSales/${date}`] = 0;
     db.ref().update(updates);
   }
 }
@@ -651,45 +690,68 @@ document.getElementById('form-add-product').addEventListener('submit', (e) => {
 
   const reader = new FileReader();
   reader.onload = function(evt) {
-    const id = Date.now();
-    const buy = parseFloat(document.getElementById('input-prod-buy').value) || 0;
-    const sell = parseFloat(document.getElementById('input-prod-sell').value) || 0;
+    const rawData = evt.target.result;
     
-    const newProd = {
-      id: id,
-      image: evt.target.result,
-      buying: buy,
-      selling: sell,
-      grossProfitUnit: sell - buy,
-      desc: document.getElementById('input-prod-desc').value || 'Collection'
-    };
+    // High performance image compression
+    const img = new Image();
+    img.src = rawData;
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      const maxDim = 400;
+      let w = img.width;
+      let h = img.height;
 
-    db.ref('products/' + id).set(newProd);
-    e.target.reset();
-    alert('✅ Product successfully uploaded to cloud catalog!');
+      if(w > h && w > maxDim) {
+        h = (h * maxDim) / w;
+        w = maxDim;
+      } else if(h > maxDim) {
+        w = (w * maxDim) / h;
+        h = maxDim;
+      }
+
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const compressedData = canvas.toDataURL('image/jpeg', 0.8);
+
+      const buy = parseFloat(document.getElementById('input-prod-buy').value) || 0;
+      const sell = parseFloat(document.getElementById('input-prod-sell').value) || 0;
+      const desc = document.getElementById('input-prod-desc').value;
+      const id = Date.now();
+
+      const prodData = {
+        id: id,
+        image: compressedData,
+        buying: buy,
+        selling: sell,
+        grossProfitUnit: sell - buy,
+        desc: desc
+      };
+
+      db.ref('products/' + id).set(prodData).then(() => {
+        document.getElementById('form-add-product').reset();
+      });
+    };
   };
   reader.readAsDataURL(file);
 });
 
-// 2. RECORD / UPDATE SALE (Staff & Admin)
+// 2. RECORD / UPDATE SALE (Optimistic local save + real-time sync)
 document.getElementById('form-sale-entry').addEventListener('submit', (e) => {
   e.preventDefault();
-  const qty = parseInt(document.getElementById('input-sale-qty').value);
-  if(isNaN(qty) || qty < 0) return alert('Please enter a valid quantity');
-  const date = document.getElementById('input-sale-date').value || todayStr;
-
-  if (!selectedProdId) {
-    return alert('Please select a product picture first.');
-  }
+  if(!selectedProdId) return alert('Please select a product picture from above');
 
   const prod = products.find(p => String(p.id) === String(selectedProdId));
-  if (!prod) return alert('Product not found.');
+  if(!prod) return;
 
+  const date = document.getElementById('input-sale-date').value || todayStr;
+  const qty = parseInt(document.getElementById('input-sale-qty').value) || 0;
   const saleId = `${date}_${prod.id}`;
-  const existingSale = sales.find(s => s.id === saleId);
 
   saveUndoSnapshot(date);
 
+  const existingSale = sales.find(s => s.id === saleId);
   const gross = (prod.selling - prod.buying) * qty;
   const prevMonthlyQty = existingSale ? (existingSale.monthlyQty !== undefined ? existingSale.monthlyQty : 0) : 0;
   const prevMonthlyGross = existingSale ? (existingSale.monthlyGrossProfit !== undefined ? existingSale.monthlyGrossProfit : 0) : 0;
@@ -708,8 +770,21 @@ document.getElementById('form-sale-entry').addEventListener('submit', (e) => {
     date: date
   };
 
+  // Immediate optimistic update
+  const localIdx = sales.findIndex(s => s.id === saleId);
+  if (localIdx >= 0) sales[localIdx] = saleData;
+  else sales.push(saleData);
+
+  renderDailyView();
+  renderProductSelector();
+
   db.ref('sales/' + saleId).set(saleData);
 });
+
+// Debounced sale quantity updater for zero typing lag in daily table
+const debouncedSaveSaleQty = debounce((saleId, saleData) => {
+  db.ref('sales/' + saleId).set(saleData);
+}, 300);
 
 function updateSaleQty(prodId, newQtyStr) {
   const qty = parseInt(newQtyStr);
@@ -742,7 +817,16 @@ function updateSaleQty(prodId, newQtyStr) {
     date: date
   };
 
-  db.ref('sales/' + saleId).set(saleData);
+  // Optimistic in-memory update
+  const localIdx = sales.findIndex(s => s.id === saleId);
+  if (localIdx >= 0) sales[localIdx] = saleData;
+  else sales.push(saleData);
+
+  // Update metrics instantly without destroying table DOM
+  updateDailySummaryMetrics();
+
+  // Debounced cloud save
+  debouncedSaveSaleQty(saleId, saleData);
 }
 
 function selectProductCard(id) {
@@ -789,6 +873,7 @@ function deleteProduct(e, id) {
 
 function renderProductSelector() {
   const grid = document.getElementById('product-grid-selector');
+  if (!grid) return;
   const date = document.getElementById('input-sale-date').value || todayStr;
   const role = getCurrentUserRole();
 
@@ -805,7 +890,6 @@ function renderProductSelector() {
     const isSelected = String(selectedProdId) === String(p.id);
     const selectedClass = isSelected ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-400' : 'border-slate-100 bg-white';
     
-    // Only Admin gets Edit/Delete overlay buttons
     const adminOverlay = role === 'admin' ? `
       <div class="absolute top-1 right-1 flex flex-col gap-1 transition-opacity duration-200 z-50 opacity-0 group-hover:opacity-100 pointer-events-auto">
          <button type="button" onclick="event.stopPropagation(); openEditModal(event, '${p.id}')" class="bg-blue-500/95 text-white p-1.5 rounded hover:bg-blue-600 shadow-md backdrop-blur-sm cursor-pointer" title="Edit Product"><i class="fa-solid fa-pen text-[10px]"></i></button>
@@ -846,7 +930,7 @@ function openEditModal(e, id) {
 function closeEditModal() {
   const modal = document.getElementById('edit-product-modal');
   modal.classList.add('hidden');
-  modal.classList.remove('flex'); 
+  modal.classList.remove('flex');
 }
 
 document.getElementById('form-edit-product').addEventListener('submit', (e) => {
@@ -868,78 +952,160 @@ document.getElementById('form-edit-product').addEventListener('submit', (e) => {
   });
 });
 
+// ULTRA-FAST SUMMARY CALCULATOR (Executed in <1ms without rebuilding tables)
+function updateDailySummaryMetrics() {
+  const date = document.getElementById('input-sale-date').value || todayStr;
+  const role = getCurrentUserRole();
+
+  let totalQty = 0;
+  let totalGrossProfit = 0;
+
+  products.forEach(p => {
+    const s = sales.find(item => item.date === date && (String(item.productId) === String(p.id) || (item.id && item.id.endsWith('_' + p.id))));
+    totalQty += getRecordQty(s);
+    totalGrossProfit += getRecordGross(s, p);
+  });
+
+  const costing = parseFloat(document.getElementById('input-daily-costing') ? document.getElementById('input-daily-costing').value : 0) || 0;
+  const perProdCost = totalQty > 0 ? (costing / totalQty).toFixed(2) : 0;
+  const totalProfit = totalGrossProfit - costing;
+  const dayTotalSale = getDayTotalSale(date);
+
+  const elSaleAmount = document.getElementById('summary-total-sale-amount');
+  const elSummaryQty = document.getElementById('summary-qty');
+
+  if (elSaleAmount) elSaleAmount.innerText = `৳ ${dayTotalSale}`;
+  if (elSummaryQty) elSummaryQty.innerText = `${totalQty} Pcs`;
+  
+  if (role === 'admin') {
+    const elGrossProfit = document.getElementById('summary-gross-profit');
+    const elCosting = document.getElementById('summary-costing');
+    const elPerProdCost = document.getElementById('summary-per-product-cost');
+    const elTotalProfit = document.getElementById('summary-total-profit');
+
+    if (elGrossProfit) elGrossProfit.innerText = `৳ ${totalGrossProfit}`;
+    if (elCosting) elCosting.innerText = `৳ ${costing}`;
+    if (elPerProdCost) elPerProdCost.innerText = `৳ ${perProdCost}`;
+    if (elTotalProfit) elTotalProfit.innerText = `৳ ${totalProfit}`;
+  }
+}
+
 function renderDailyView() {
   const date = document.getElementById('input-sale-date').value || todayStr;
   document.getElementById('summary-header-date').innerText = `Date: ${date}`;
   const role = getCurrentUserRole();
 
   const tbody = document.getElementById('tbody-daily-sales');
+  if (!tbody) return;
+
   if (products.length === 0) {
     tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400 text-xs font-semibold">No products added yet.</td></tr>`;
   } else {
-    let totalQty = 0;
-    let totalGrossProfit = 0;
+    // Only rebuild table if not actively editing table quantity
+    const isEditingTableQty = document.activeElement && document.activeElement.classList.contains('daily-qty-input');
+    if (!isEditingTableQty) {
+      tbody.innerHTML = products.map((p, idx) => {
+        const s = sales.find(item => item.date === date && (String(item.productId) === String(p.id) || (item.id && item.id.endsWith('_' + p.id))));
+        const qty = getRecordQty(s);
+        const grossProfit = getRecordGross(s, p);
 
-    tbody.innerHTML = products.map((p, idx) => {
-      const s = sales.find(item => item.date === date && (String(item.productId) === String(p.id) || (item.id && item.id.endsWith('_' + p.id))));
-      const qty = getRecordQty(s);
-      const grossProfit = getRecordGross(s, p);
+        const priceBadges = `
+          <div class="text-[11px] font-semibold text-slate-600 flex gap-1.5 items-center">
+            <span class="bg-amber-100/80 text-amber-900 px-2 py-0.5 rounded shadow-sm border border-amber-200 font-bold">Sell: ৳${p.selling}</span>
+            <span class="text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">Buy: ৳${p.buying}</span>
+          </div>
+        `;
 
-      totalQty += qty;
-      totalGrossProfit += grossProfit;
+        const financialCol = role === 'admin' ? `
+          <td class="admin-only p-2.5 sm:p-4 font-black text-xs sm:text-sm text-slate-800" id="prod-gross-${p.id}">৳ ${grossProfit}</td>
+        ` : '';
 
-      // Both Staff and Admin can view Sell and Buy prices
-      const priceBadges = `
-        <div class="text-[11px] font-semibold text-slate-600 flex gap-1.5 items-center">
-          <span class="bg-amber-100/80 text-amber-900 px-2 py-0.5 rounded shadow-sm border border-amber-200 font-bold">Sell: ৳${p.selling}</span>
-          <span class="text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">Buy: ৳${p.buying}</span>
-        </div>
-      `;
-
-      const financialCol = role === 'admin' ? `
-        <td class="admin-only p-2.5 sm:p-4 font-black text-xs sm:text-sm text-slate-800">৳ ${grossProfit}</td>
-      ` : '';
-
-      const actionCol = role === 'admin' ? `
-        <td class="admin-only p-2.5 sm:p-4 text-center no-print">
-          <button onclick="deleteProduct(event, ${p.id})" class="text-rose-400 hover:text-white bg-rose-50 hover:bg-rose-500 p-1.5 sm:p-2 transition-colors rounded-lg shadow-sm border border-rose-100 hover:border-rose-500" title="Delete Product"><i class="fa-solid fa-trash-can text-xs"></i></button>
-        </td>
-      ` : '';
-
-      return `
-        <tr class="hover:bg-slate-100/50 transition-colors border-b border-slate-50" data-sell-price="${p.selling}">
-          <td class="p-2.5 sm:p-4 text-center font-bold text-slate-400 text-xs">${idx + 1}</td>
-          <td class="p-2.5 sm:p-4"><img src="${p.image}" class="img-compact shadow-sm"></td>
-          <td class="p-2.5 sm:p-4">
-            <div class="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
-              <span class="text-[11px] sm:text-xs font-bold text-slate-500">Qty:</span>
-              <input type="number" min="0" value="${qty}" onchange="updateSaleQty(${p.id}, this.value)" class="w-14 sm:w-16 border border-slate-200 rounded-lg p-1 text-xs font-black text-slate-900 bg-amber-50 text-center outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all">
-              <span class="text-[11px] sm:text-xs font-bold text-slate-400">Pcs</span>
-            </div>
-            ${priceBadges}
+        const actionCol = role === 'admin' ? `
+          <td class="admin-only p-2.5 sm:p-4 text-center no-print">
+            <button onclick="deleteProduct(event, ${p.id})" class="text-rose-400 hover:text-white bg-rose-50 hover:bg-rose-500 p-1.5 sm:p-2 transition-colors rounded-lg shadow-sm border border-rose-100 hover:border-rose-500" title="Delete Product"><i class="fa-solid fa-trash-can text-xs"></i></button>
           </td>
-          ${financialCol}
-          <td class="p-2.5 sm:p-4 text-xs text-slate-600 leading-relaxed font-medium">${p.desc || ''}</td>
-          ${actionCol}
-        </tr>
-      `;
-    }).join('');
+        ` : '';
 
-    const costing = parseFloat(document.getElementById('input-daily-costing') ? document.getElementById('input-daily-costing').value : 0) || 0;
-    const perProdCost = totalQty > 0 ? (costing / totalQty).toFixed(2) : 0;
-    const totalProfit = totalGrossProfit - costing;
-
-    document.getElementById('summary-qty').innerText = `${totalQty} Pcs`;
-    
-    if (role === 'admin') {
-      document.getElementById('summary-gross-profit').innerText = `৳ ${totalGrossProfit}`;
-      document.getElementById('summary-costing').innerText = `৳ ${costing}`;
-      document.getElementById('summary-per-product-cost').innerText = `৳ ${perProdCost}`;
-      document.getElementById('summary-total-profit').innerText = `৳ ${totalProfit}`;
+        return `
+          <tr class="hover:bg-slate-100/50 transition-colors border-b border-slate-50" data-sell-price="${p.selling}">
+            <td class="p-2.5 sm:p-4 text-center font-bold text-slate-400 text-xs">${idx + 1}</td>
+            <td class="p-2.5 sm:p-4"><img src="${p.image}" class="img-compact shadow-sm"></td>
+            <td class="p-2.5 sm:p-4">
+              <div class="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                <span class="text-[11px] sm:text-xs font-bold text-slate-500">Qty:</span>
+                <input type="number" min="0" value="${qty}" oninput="updateSaleQty(${p.id}, this.value)" class="daily-qty-input w-14 sm:w-16 border border-slate-200 rounded-lg p-1 text-xs font-black text-slate-900 bg-amber-50 text-center outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all">
+                <span class="text-[11px] sm:text-xs font-bold text-slate-400">Pcs</span>
+              </div>
+              ${priceBadges}
+            </td>
+            ${financialCol}
+            <td class="p-2.5 sm:p-4 text-xs text-slate-600 leading-relaxed font-medium">${p.desc || ''}</td>
+            ${actionCol}
+          </tr>
+        `;
+      }).join('');
     }
   }
 
+  updateDailySummaryMetrics();
   filterDailyTableByPrice();
+}
+
+function updateMonthlySummaryMetrics() {
+  const monthFilter = document.getElementById('input-monthly-filter').value;
+  const dateFilter = document.getElementById('input-monthly-date-filter').value;
+
+  let filteredSales = sales.filter(s => s.date && s.date.startsWith(monthFilter));
+  if (dateFilter) {
+    filteredSales = filteredSales.filter(s => s.date === dateFilter);
+  }
+
+  const activeFilteredSales = filteredSales.filter(s => getRecordQty(s) > 0);
+
+  let totalMonthlyQty = 0;
+  let totalMonthlyGross = 0;
+  activeFilteredSales.forEach(s => {
+    const pId = s.productId || (s.id ? s.id.split('_')[1] : null);
+    const prod = products.find(p => String(p.id) === String(pId));
+    totalMonthlyQty += getRecordQty(s);
+    totalMonthlyGross += getRecordGross(s, prod);
+  });
+
+  let monthActiveDates = new Set();
+  sales.forEach(s => {
+    if (s.date && s.date.startsWith(monthFilter) && getRecordQty(s) > 0) monthActiveDates.add(s.date);
+  });
+  Object.keys(dailyCosts).forEach(d => {
+    if (d.startsWith(monthFilter) && parseFloat(dailyCosts[d]) > 0) monthActiveDates.add(d);
+  });
+  Object.keys(dailyTotalSales).forEach(d => {
+    if (d.startsWith(monthFilter) && parseFloat(dailyTotalSales[d]) > 0) monthActiveDates.add(d);
+  });
+
+  let totalMonthlySale = 0;
+  let totalMonthlyCosting = 0;
+
+  if (dateFilter) {
+    totalMonthlySale = getDayTotalSale(dateFilter);
+    totalMonthlyCosting = parseFloat(dailyCosts[dateFilter]) || 0;
+  } else {
+    monthActiveDates.forEach(d => {
+      totalMonthlySale += getDayTotalSale(d);
+      totalMonthlyCosting += parseFloat(dailyCosts[d]) || 0;
+    });
+  }
+
+  const elMSale = document.getElementById('m-stat-sale');
+  const elMQty = document.getElementById('m-stat-qty');
+  const elMGross = document.getElementById('m-stat-gross');
+  const elMCost = document.getElementById('m-stat-costing');
+  const elMNet = document.getElementById('m-stat-net');
+
+  if (elMSale) elMSale.innerText = `৳ ${totalMonthlySale}`;
+  if (elMQty) elMQty.innerText = `${totalMonthlyQty} Pcs`;
+  if (elMGross) elMGross.innerText = `৳ ${totalMonthlyGross}`;
+  if (elMCost) elMCost.innerText = `৳ ${totalMonthlyCosting}`;
+  if (elMNet) elMNet.innerText = `৳ ${totalMonthlyGross - totalMonthlyCosting}`;
 }
 
 function renderMonthlyView() {
@@ -953,9 +1119,7 @@ function renderMonthlyView() {
     filteredSales = filteredSales.filter(s => s.date === dateFilter);
   }
 
-  // Filter only records that have positive sales quantity
   const activeFilteredSales = filteredSales.filter(s => getRecordQty(s) > 0);
-
   const tbody = document.getElementById('tbody-monthly-sales');
   if (!tbody) return;
 
@@ -989,35 +1153,7 @@ function renderMonthlyView() {
     }).join('');
   }
 
-  let totalMonthlyQty = 0;
-  let totalMonthlyGross = 0;
-  activeFilteredSales.forEach(s => {
-    const pId = s.productId || (s.id ? s.id.split('_')[1] : null);
-    const prod = products.find(p => String(p.id) === String(pId));
-    totalMonthlyQty += getRecordQty(s);
-    totalMonthlyGross += getRecordGross(s, prod);
-  });
-
-  let totalMonthlyCosting = 0;
-  if (dateFilter) {
-    totalMonthlyCosting = dailyCosts[dateFilter] || 0;
-  } else {
-    Object.keys(dailyCosts).forEach(d => {
-      if (d.startsWith(monthFilter)) {
-        totalMonthlyCosting += parseFloat(dailyCosts[d]) || 0;
-      }
-    });
-  }
-
-  const elMQty = document.getElementById('m-stat-qty');
-  const elMGross = document.getElementById('m-stat-gross');
-  const elMCost = document.getElementById('m-stat-costing');
-  const elMNet = document.getElementById('m-stat-net');
-
-  if (elMQty) elMQty.innerText = `${totalMonthlyQty} Pcs`;
-  if (elMGross) elMGross.innerText = `৳ ${totalMonthlyGross}`;
-  if (elMCost) elMCost.innerText = `৳ ${totalMonthlyCosting}`;
-  if (elMNet) elMNet.innerText = `৳ ${totalMonthlyGross - totalMonthlyCosting}`;
+  updateMonthlySummaryMetrics();
 }
 
 // TAB 4: MULTI-DATE RANGE INDIVIDUAL DAILY REPORTS (ADMIN ONLY)
@@ -1045,13 +1181,13 @@ function generateRangeDailyReports() {
   }
 
   let totalDaysCount = 0;
+  let rangeTotalSale = 0;
   let rangeTotalQty = 0;
   let rangeTotalGross = 0;
   let rangeTotalCost = 0;
 
   let dayCardsHtml = [];
 
-  // Generate list of dates from startDate to endDate
   let cur = new Date(startDate);
   let datesList = [];
   while (cur <= endDate) {
@@ -1063,14 +1199,11 @@ function generateRangeDailyReports() {
     const dateObj = new Date(dStr + 'T00:00:00');
     const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
     
-    // Find all sales recorded for this day
     const daySales = sales.filter(s => s.date === dStr);
-    
     let dayQty = 0;
     let dayGrossProfit = 0;
     let itemsList = [];
 
-    // Check every sale entry recorded for this date
     daySales.forEach(s => {
       const q = getRecordQty(s);
       if (q > 0) {
@@ -1096,12 +1229,14 @@ function generateRangeDailyReports() {
 
     const dayCost = parseFloat(dailyCosts[dStr]) || 0;
     const dayNetProfit = dayGrossProfit - dayCost;
+    const dayTotalSale = getDayTotalSale(dStr);
 
-    if (showFilter === 'sales_only' && dayQty === 0 && dayCost === 0) {
+    if (showFilter === 'sales_only' && dayQty === 0 && dayCost === 0 && dayTotalSale === 0) {
       return; // Skip days with no activity
     }
 
     totalDaysCount++;
+    rangeTotalSale += dayTotalSale;
     rangeTotalQty += dayQty;
     rangeTotalGross += dayGrossProfit;
     rangeTotalCost += dayCost;
@@ -1129,14 +1264,19 @@ function generateRangeDailyReports() {
             <span>Date: ${dStr}</span>
             <span class="text-slate-400 text-[10px] font-normal">(${dayName})</span>
           </div>
-          <div class="text-[11px] text-emerald-400 font-black">Net: ৳${dayNetProfit}</div>
+          <div class="text-[11px] font-black flex items-center gap-2">
+            <span class="text-emerald-400">Sale: ৳${dayTotalSale}</span>
+            <span class="text-slate-400">|</span>
+            <span class="text-amber-400">Net: ৳${dayNetProfit}</span>
+          </div>
         </div>
 
-        <div class="grid grid-cols-4 bg-slate-50 border-b border-slate-200 text-center divide-x divide-slate-200 text-[10px] py-1.5 font-bold">
-          <div><span class="text-slate-400 block text-[9px] uppercase">Qty</span><span class="text-slate-900 font-black">${dayQty} Pcs</span></div>
-          <div><span class="text-slate-400 block text-[9px] uppercase">Profit</span><span class="text-slate-900 font-black">৳${dayGrossProfit}</span></div>
-          <div><span class="text-slate-400 block text-[9px] uppercase">Costing</span><span class="text-rose-600 font-black">৳${dayCost}</span></div>
-          <div><span class="text-slate-400 block text-[9px] uppercase">Net Profit</span><span class="text-emerald-700 font-black">৳${dayNetProfit}</span></div>
+        <div class="grid grid-cols-5 bg-slate-50 border-b border-slate-200 text-center divide-x divide-slate-200 text-[10px] py-1.5 font-bold">
+          <div><span class="text-slate-400 block text-[8px] uppercase">Total Sale</span><span class="text-emerald-700 font-black">৳${dayTotalSale}</span></div>
+          <div><span class="text-slate-400 block text-[8px] uppercase">Quantity</span><span class="text-slate-900 font-black">${dayQty} Pcs</span></div>
+          <div><span class="text-slate-400 block text-[8px] uppercase">Gross Profit</span><span class="text-indigo-700 font-black">৳${dayGrossProfit}</span></div>
+          <div><span class="text-slate-400 block text-[8px] uppercase">Costing</span><span class="text-rose-600 font-black">৳${dayCost}</span></div>
+          <div><span class="text-slate-400 block text-[8px] uppercase">Net Profit</span><span class="text-slate-950 font-black">৳${dayNetProfit}</span></div>
         </div>
 
         <div class="p-2 flex-1 overflow-x-auto">
@@ -1160,12 +1300,14 @@ function generateRangeDailyReports() {
   });
 
   const elDays = document.getElementById('range-total-days');
+  const elSale = document.getElementById('range-total-sale');
   const elQty = document.getElementById('range-total-qty');
   const elGross = document.getElementById('range-total-gross');
   const elCost = document.getElementById('range-total-cost');
   const elNet = document.getElementById('range-total-net');
 
   if (elDays) elDays.innerText = `${totalDaysCount} Days`;
+  if (elSale) elSale.innerText = `৳ ${rangeTotalSale}`;
   if (elQty) elQty.innerText = `${rangeTotalQty} Pcs`;
   if (elGross) elGross.innerText = `৳ ${rangeTotalGross}`;
   if (elCost) elCost.innerText = `৳ ${rangeTotalCost}`;
@@ -1249,7 +1391,6 @@ function renderGrandTotalView() {
 
   let productStats = {};
 
-  // 1. Initialize stats object for active catalog products
   products.forEach(p => {
     productStats[String(p.id)] = {
       id: p.id,
@@ -1262,7 +1403,6 @@ function renderGrandTotalView() {
     };
   });
 
-  // 2. Aggregate sales quantities into corresponding product stats across all-time records
   sales.forEach(s => {
     const q = getRecordQty(s);
     if (q <= 0) return;
@@ -1288,7 +1428,6 @@ function renderGrandTotalView() {
     }
   });
 
-  // 3. Compute Grand Totals directly from aggregated productStats
   let grandQty = 0;
   let grandGross = 0;
 
@@ -1302,18 +1441,34 @@ function renderGrandTotalView() {
     grandCosting += parseFloat(c) || 0;
   });
 
-  // 4. Update the Grand Total summary cards
+  let allKnownDates = new Set();
+  sales.forEach(s => {
+    if (s.date && getRecordQty(s) > 0) allKnownDates.add(s.date);
+  });
+  Object.keys(dailyCosts).forEach(d => {
+    if (parseFloat(dailyCosts[d]) > 0) allKnownDates.add(d);
+  });
+  Object.keys(dailyTotalSales).forEach(d => {
+    if (parseFloat(dailyTotalSales[d]) > 0) allKnownDates.add(d);
+  });
+
+  let grandTotalSale = 0;
+  allKnownDates.forEach(d => {
+    grandTotalSale += getDayTotalSale(d);
+  });
+
+  const elGSale = document.getElementById('g-stat-sale');
   const elGQty = document.getElementById('g-stat-qty');
   const elGGross = document.getElementById('g-stat-gross');
   const elGCost = document.getElementById('g-stat-costing');
   const elGNet = document.getElementById('g-stat-net');
 
+  if (elGSale) elGSale.innerText = `৳ ${grandTotalSale}`;
   if (elGQty) elGQty.innerText = `${grandQty} Pcs`;
   if (elGGross) elGGross.innerText = `৳ ${grandGross}`;
   if (elGCost) elGCost.innerText = `৳ ${grandCosting}`;
   if (elGNet) elGNet.innerText = `৳ ${grandGross - grandCosting}`;
 
-  // 5. Render the Lifetime Product Sales Breakdown table
   const tbody = document.getElementById('tbody-grand-total-sales');
   if (!tbody) return;
 
@@ -1339,7 +1494,9 @@ function renderGrandTotalView() {
 }
 
 function filterDailyTableByPrice() {
-  const searchValue = document.getElementById('input-price-search').value.trim();
+  const input = document.getElementById('input-price-search');
+  if (!input) return;
+  const searchValue = input.value.trim();
   const tbody = document.getElementById('tbody-daily-sales');
   if (!tbody) return;
 
@@ -1367,32 +1524,77 @@ function clearPriceSearch() {
   }
 }
 
-// Event listeners
+// ==========================================
+// OPTIMIZED INSTANT INPUT HANDLERS & DEBOUNCED SYNC
+// ==========================================
+
+const debouncedSyncDailyTotalSale = debounce((date, val) => {
+  if (val === '' || val === null || isNaN(val)) {
+    db.ref('dailyTotalSales/' + date).remove();
+  } else {
+    db.ref('dailyTotalSales/' + date).set(val);
+  }
+}, 300);
+
+const debouncedSyncDailyCosting = debounce((date, val) => {
+  db.ref('dailyCosts/' + date).set(val);
+}, 300);
+
+// Daily Date change
 document.getElementById('input-sale-date').addEventListener('change', () => {
   const selectedDate = document.getElementById('input-sale-date').value;
   const costInput = document.getElementById('input-daily-costing');
   if (costInput) {
     costInput.value = dailyCosts[selectedDate] || 0;
   }
+  const saleInput = document.getElementById('input-daily-total-sale');
+  if (saleInput) {
+    saleInput.value = dailyTotalSales[selectedDate] !== undefined ? dailyTotalSales[selectedDate] : '';
+  }
   renderProductSelector();
   renderDailyView();
 });
 
+// Daily Total Sale input (Instant local UI update + debounced cloud sync)
+const dailyTotalSaleInput = document.getElementById('input-daily-total-sale');
+if (dailyTotalSaleInput) {
+  dailyTotalSaleInput.addEventListener('input', (e) => {
+    const selectedDate = document.getElementById('input-sale-date').value || todayStr;
+    const val = e.target.value.trim();
+    if (val === '') {
+      delete dailyTotalSales[selectedDate];
+      debouncedSyncDailyTotalSale(selectedDate, '');
+    } else {
+      const num = parseFloat(val);
+      if (!isNaN(num)) {
+        dailyTotalSales[selectedDate] = num;
+        debouncedSyncDailyTotalSale(selectedDate, num);
+      }
+    }
+    updateDailySummaryMetrics();
+  });
+}
+
+// Daily Costing input (Instant local UI update + debounced cloud sync)
 const dailyCostingInput = document.getElementById('input-daily-costing');
 if (dailyCostingInput) {
   dailyCostingInput.addEventListener('input', (e) => {
     if (getCurrentUserRole() !== 'admin') return;
     const selectedDate = document.getElementById('input-sale-date').value || todayStr;
     const val = parseFloat(e.target.value) || 0;
-    db.ref('dailyCosts/' + selectedDate).set(val);
+    dailyCosts[selectedDate] = val;
+    updateDailySummaryMetrics();
+    debouncedSyncDailyCosting(selectedDate, val);
   });
 }
 
+// Monthly Filter Month change
 const monthlyFilterInput = document.getElementById('input-monthly-filter');
 if (monthlyFilterInput) {
   monthlyFilterInput.addEventListener('change', renderMonthlyView);
 }
 
+// Monthly Filter Date change
 const monthlyDateFilterInput = document.getElementById('input-monthly-date-filter');
 if (monthlyDateFilterInput) {
   monthlyDateFilterInput.addEventListener('change', (e) => {
@@ -1401,10 +1603,15 @@ if (monthlyDateFilterInput) {
     if (mCostEdit) {
       mCostEdit.value = dateVal ? (dailyCosts[dateVal] || 0) : '';
     }
+    const mSaleEdit = document.getElementById('input-monthly-sale-edit');
+    if (mSaleEdit) {
+      mSaleEdit.value = dateVal ? (dailyTotalSales[dateVal] !== undefined ? dailyTotalSales[dateVal] : '') : '';
+    }
     renderMonthlyView();
   });
 }
 
+// Monthly Cost Edit input (Instant local UI update + debounced cloud sync)
 const monthlyCostEditInput = document.getElementById('input-monthly-cost-edit');
 if (monthlyCostEditInput) {
   monthlyCostEditInput.addEventListener('input', (e) => {
@@ -1412,6 +1619,30 @@ if (monthlyCostEditInput) {
     const targetDate = document.getElementById('input-monthly-date-filter').value;
     if (!targetDate) return;
     const val = parseFloat(e.target.value) || 0;
-    db.ref('dailyCosts/' + targetDate).set(val);
+    dailyCosts[targetDate] = val;
+    updateMonthlySummaryMetrics();
+    debouncedSyncDailyCosting(targetDate, val);
+  });
+}
+
+// Monthly Total Sale Edit input (Instant local UI update + debounced cloud sync)
+const monthlySaleEditInput = document.getElementById('input-monthly-sale-edit');
+if (monthlySaleEditInput) {
+  monthlySaleEditInput.addEventListener('input', (e) => {
+    if (getCurrentUserRole() !== 'admin') return;
+    const targetDate = document.getElementById('input-monthly-date-filter').value;
+    if (!targetDate) return;
+    const val = e.target.value.trim();
+    if (val === '') {
+      delete dailyTotalSales[targetDate];
+      debouncedSyncDailyTotalSale(targetDate, '');
+    } else {
+      const num = parseFloat(val);
+      if (!isNaN(num)) {
+        dailyTotalSales[targetDate] = num;
+        debouncedSyncDailyTotalSale(targetDate, num);
+      }
+    }
+    updateMonthlySummaryMetrics();
   });
 }
