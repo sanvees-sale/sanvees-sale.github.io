@@ -897,29 +897,29 @@ function renderDailyView() {
       `;
 
       const financialCol = role === 'admin' ? `
-        <td class="admin-only p-4 font-black text-sm text-slate-800">৳ ${grossProfit}</td>
+        <td class="admin-only p-2.5 sm:p-4 font-black text-xs sm:text-sm text-slate-800">৳ ${grossProfit}</td>
       ` : '';
 
       const actionCol = role === 'admin' ? `
-        <td class="admin-only p-4 text-center no-print">
-          <button onclick="deleteProduct(event, ${p.id})" class="text-rose-400 hover:text-white bg-rose-50 hover:bg-rose-500 p-2 transition-colors rounded-lg shadow-sm border border-rose-100 hover:border-rose-500" title="Delete Product"><i class="fa-solid fa-trash-can"></i></button>
+        <td class="admin-only p-2.5 sm:p-4 text-center no-print">
+          <button onclick="deleteProduct(event, ${p.id})" class="text-rose-400 hover:text-white bg-rose-50 hover:bg-rose-500 p-1.5 sm:p-2 transition-colors rounded-lg shadow-sm border border-rose-100 hover:border-rose-500" title="Delete Product"><i class="fa-solid fa-trash-can text-xs"></i></button>
         </td>
       ` : '';
 
       return `
         <tr class="hover:bg-slate-100/50 transition-colors border-b border-slate-50" data-sell-price="${p.selling}">
-          <td class="p-4 text-center font-bold text-slate-400">${idx + 1}</td>
-          <td class="p-4"><img src="${p.image}" class="img-compact shadow-sm"></td>
-          <td class="p-4">
-            <div class="flex items-center gap-2 mb-2">
-              <span class="text-xs font-bold text-slate-500">Qty:</span>
-              <input type="number" min="0" value="${qty}" onchange="updateSaleQty(${p.id}, this.value)" class="w-16 border border-slate-200 rounded-lg p-1 text-xs font-black text-slate-900 bg-amber-50 text-center outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all">
-              <span class="text-xs font-bold text-slate-400">Pcs</span>
+          <td class="p-2.5 sm:p-4 text-center font-bold text-slate-400 text-xs">${idx + 1}</td>
+          <td class="p-2.5 sm:p-4"><img src="${p.image}" class="img-compact shadow-sm"></td>
+          <td class="p-2.5 sm:p-4">
+            <div class="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+              <span class="text-[11px] sm:text-xs font-bold text-slate-500">Qty:</span>
+              <input type="number" min="0" value="${qty}" onchange="updateSaleQty(${p.id}, this.value)" class="w-14 sm:w-16 border border-slate-200 rounded-lg p-1 text-xs font-black text-slate-900 bg-amber-50 text-center outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all">
+              <span class="text-[11px] sm:text-xs font-bold text-slate-400">Pcs</span>
             </div>
             ${priceBadges}
           </td>
           ${financialCol}
-          <td class="p-4 text-xs text-slate-600 leading-relaxed font-medium">${p.desc || ''}</td>
+          <td class="p-2.5 sm:p-4 text-xs text-slate-600 leading-relaxed font-medium">${p.desc || ''}</td>
           ${actionCol}
         </tr>
       `;
@@ -970,18 +970,18 @@ function renderMonthlyView() {
 
       return `
         <tr class="hover:bg-slate-100/50 transition-colors border-b border-slate-50">
-          <td class="p-4 text-center font-bold text-slate-400">${idx + 1}</td>
-          <td class="p-4 font-extrabold text-slate-700 bg-slate-50/50">${s.date}</td>
-          <td class="p-4"><img src="${s.image}" class="img-compact shadow-sm border-slate-100"></td>
-          <td class="p-4">
-            <div class="text-xs font-black text-slate-800 bg-slate-100 px-2 py-1 rounded inline-block mb-1">Qty: ${q} Pcs</div>
-            <div class="text-[11px] text-slate-500 mt-1 font-semibold">Sell: ৳${s.selling} <span class="text-slate-300 mx-1">|</span> Buy: ৳${s.buying}</div>
+          <td class="p-2.5 sm:p-4 text-center font-bold text-slate-400 text-xs">${idx + 1}</td>
+          <td class="p-2.5 sm:p-4 font-extrabold text-slate-700 bg-slate-50/50 text-[11px] sm:text-xs">${s.date}</td>
+          <td class="p-2.5 sm:p-4"><img src="${s.image}" class="img-compact shadow-sm border-slate-100"></td>
+          <td class="p-2.5 sm:p-4">
+            <div class="text-[11px] sm:text-xs font-black text-slate-800 bg-slate-100 px-2 py-0.5 sm:py-1 rounded inline-block mb-1">Qty: ${q} Pcs</div>
+            <div class="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 sm:mt-1 font-semibold">Sell: ৳${s.selling} <span class="text-slate-300 mx-1">|</span> Buy: ৳${s.buying}</div>
           </td>
-          <td class="p-4 font-black text-sm text-indigo-700">৳ ${g}</td>
-          <td class="p-4 text-xs text-slate-600 leading-relaxed font-medium">${s.desc || ''}</td>
-          <td class="p-4 text-center no-print">
-            <button onclick="deleteProduct(event, ${pId})" class="text-rose-400 hover:text-white bg-rose-50 hover:bg-rose-500 p-2 transition-colors rounded-lg shadow-sm border border-rose-100 hover:border-rose-500" title="Delete Product Completely">
-              <i class="fa-solid fa-trash-can"></i>
+          <td class="p-2.5 sm:p-4 font-black text-xs sm:text-sm text-indigo-700">৳ ${g}</td>
+          <td class="p-2.5 sm:p-4 text-xs text-slate-600 leading-relaxed font-medium">${s.desc || ''}</td>
+          <td class="p-2.5 sm:p-4 text-center no-print">
+            <button onclick="deleteProduct(event, ${pId})" class="text-rose-400 hover:text-white bg-rose-50 hover:bg-rose-500 p-1.5 sm:p-2 transition-colors rounded-lg shadow-sm border border-rose-100 hover:border-rose-500" title="Delete Product Completely">
+              <i class="fa-solid fa-trash-can text-xs"></i>
             </button>
           </td>
         </tr>
@@ -1325,14 +1325,14 @@ function renderGrandTotalView() {
   } else {
     tbody.innerHTML = soldProducts.map((p, idx) => `
       <tr class="hover:bg-slate-100/50 transition-colors border-b border-slate-50">
-        <td class="p-4 text-center font-bold text-slate-400">${idx + 1}</td>
-        <td class="p-4"><img src="${p.image}" class="img-compact shadow-sm border-slate-100"></td>
-        <td class="p-4">
-          <div class="text-sm font-black text-amber-600 bg-amber-50 px-2 py-1 inline-block rounded border border-amber-100 mb-1">Total Sold: ${p.lifetimeQty} Pcs</div>
-          <div class="text-[11px] text-slate-500 mt-1 font-semibold">Sell: ৳${p.selling} <span class="text-slate-300 mx-1">|</span> Buy: ৳${p.buying}</div>
+        <td class="p-2.5 sm:p-4 text-center font-bold text-slate-400 text-xs">${idx + 1}</td>
+        <td class="p-2.5 sm:p-4"><img src="${p.image}" class="img-compact shadow-sm border-slate-100"></td>
+        <td class="p-2.5 sm:p-4">
+          <div class="text-xs sm:text-sm font-black text-amber-600 bg-amber-50 px-2 py-0.5 sm:py-1 inline-block rounded border border-amber-100 mb-1">Total Sold: ${p.lifetimeQty} Pcs</div>
+          <div class="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 sm:mt-1 font-semibold">Sell: ৳${p.selling} <span class="text-slate-300 mx-1">|</span> Buy: ৳${p.buying}</div>
         </td>
-        <td class="p-4 font-black text-base text-emerald-600">৳ ${p.lifetimeGross}</td>
-        <td class="p-4 text-xs text-slate-600 font-medium">${p.desc || ''}</td>
+        <td class="p-2.5 sm:p-4 font-black text-xs sm:text-base text-emerald-600">৳ ${p.lifetimeGross}</td>
+        <td class="p-2.5 sm:p-4 text-xs text-slate-600 font-medium">${p.desc || ''}</td>
       </tr>
     `).join('');
   }
