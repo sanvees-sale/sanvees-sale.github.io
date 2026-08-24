@@ -338,17 +338,180 @@ function executeDatabaseRestore() {
   });
 }
 
-// CHANGE PASSWORD MODAL & HANDLERS
-function openPasswordModal() {
-  const modal = document.getElementById('password-modal');
-  if (modal) {
-    const adminInput = document.getElementById('input-new-admin-pass');
-    const staffInput = document.getElementById('input-new-staff-pass');
-    if (adminInput) adminInput.value = authCredentials.admin || 'project420';
-    if (staffInput) staffInput.value = authCredentials.staff || 'staff123';
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+// ==========================================
+// SECURE PASSWORD CHANGE SYSTEM & MODAL
+// ==========================================
+
+function togglePasswordVisibility(inputId, iconId) {
+  const input = document.getElementById(inputId);
+  const icon = document.getElementById(iconId);
+  if (!input || !icon) return;
+
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.classList.remove('fa-eye-slash');
+    icon.classList.add('fa-eye');
+  } else {
+    input.type = 'password';
+    icon.classList.remove('fa-eye');
+    icon.classList.add('fa-eye-slash');
   }
+}
+
+function switchPasswordModalTab(targetRole) {
+  const currentRole = getCurrentUserRole();
+  const isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
+
+  // If staff is logged in, restrict to staff password
+  if (isLoggedIn && currentRole === 'staff') {
+    targetRole = 'staff';
+  }
+
+  const roleInput = document.getElementById('pwd-target-role');
+  if (roleInput) roleInput.value = targetRole;
+
+  const tabAdmin = document.getElementById('tab-pwd-admin');
+  const tabStaff = document.getElementById('tab-pwd-staff');
+  const banner = document.getElementById('pwd-role-banner');
+  const bannerText = document.getElementById('pwd-banner-text');
+
+  if (targetRole === 'admin') {
+    if (tabAdmin) {
+      tabAdmin.className = 'flex-1 py-2 px-3 rounded-lg text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 bg-white text-slate-900 shadow-xs';
+    }
+    if (tabStaff) {
+      tabStaff.className = 'flex-1 py-2 px-3 rounded-lg text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 text-slate-500 hover:text-slate-800';
+    }
+    if (banner) {
+      banner.className = 'p-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-900';
+    }
+    if (bannerText) {
+      bannerText.innerHTML = `Updating Master <b class="text-amber-800 font-extrabold">Admin</b> Password`;
+    }
+  } else {
+    if (tabStaff) {
+      tabStaff.className = 'flex-1 py-2 px-3 rounded-lg text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 bg-white text-slate-900 shadow-xs';
+    }
+    if (tabAdmin) {
+      tabAdmin.className = 'flex-1 py-2 px-3 rounded-lg text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 text-slate-500 hover:text-slate-800';
+    }
+    if (banner) {
+      banner.className = 'p-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 bg-indigo-50 border border-indigo-200 text-indigo-900';
+    }
+    if (bannerText) {
+      bannerText.innerHTML = `Updating <b class="text-indigo-800 font-extrabold">Staff</b> Password`;
+    }
+  }
+
+  resetPasswordModalInputs();
+}
+
+function handlePasswordStrengthCheck() {
+  const pass = document.getElementById('input-new-pass')?.value || '';
+  const bar1 = document.getElementById('pwd-strength-bar-1');
+  const bar2 = document.getElementById('pwd-strength-bar-2');
+  const bar3 = document.getElementById('pwd-strength-bar-3');
+  const text = document.getElementById('pwd-strength-text');
+
+  if (!bar1 || !bar2 || !bar3 || !text) return;
+
+  bar1.className = 'h-full w-1/3 bg-slate-200 transition-all';
+  bar2.className = 'h-full w-1/3 bg-slate-200 transition-all';
+  bar3.className = 'h-full w-1/3 bg-slate-200 transition-all';
+
+  if (pass.length === 0) {
+    text.innerText = 'Empty';
+    text.className = 'text-[10px] font-bold text-slate-400';
+  } else if (pass.length < 4) {
+    bar1.className = 'h-full w-1/3 bg-rose-500 transition-all';
+    text.innerText = 'Too short';
+    text.className = 'text-[10px] font-bold text-rose-600';
+  } else if (pass.length < 7) {
+    bar1.className = 'h-full w-1/3 bg-amber-500 transition-all';
+    bar2.className = 'h-full w-1/3 bg-amber-500 transition-all';
+    text.innerText = 'Medium';
+    text.className = 'text-[10px] font-bold text-amber-600';
+  } else {
+    bar1.className = 'h-full w-1/3 bg-emerald-500 transition-all';
+    bar2.className = 'h-full w-1/3 bg-emerald-500 transition-all';
+    bar3.className = 'h-full w-1/3 bg-emerald-500 transition-all';
+    text.innerText = 'Strong';
+    text.className = 'text-[10px] font-bold text-emerald-600';
+  }
+
+  handlePasswordMatchCheck();
+}
+
+function handlePasswordMatchCheck() {
+  const newPass = document.getElementById('input-new-pass')?.value || '';
+  const confirmPass = document.getElementById('input-confirm-pass')?.value || '';
+  const badge = document.getElementById('pwd-match-badge');
+
+  if (!badge) return;
+
+  if (!confirmPass) {
+    badge.classList.add('hidden');
+    return;
+  }
+
+  badge.classList.remove('hidden');
+  if (newPass === confirmPass) {
+    badge.innerText = '✓ Matches';
+    badge.className = 'text-[10px] font-bold text-emerald-600';
+  } else {
+    badge.innerText = '✗ Mismatch';
+    badge.className = 'text-[10px] font-bold text-rose-600';
+  }
+}
+
+function resetPasswordModalInputs() {
+  const currInput = document.getElementById('input-curr-pass');
+  const newInput = document.getElementById('input-new-pass');
+  const confirmInput = document.getElementById('input-confirm-pass');
+  const feedback = document.getElementById('pwd-feedback-msg');
+  const badge = document.getElementById('pwd-match-badge');
+
+  if (currInput) { currInput.value = ''; currInput.type = 'password'; }
+  if (newInput) { newInput.value = ''; newInput.type = 'password'; }
+  if (confirmInput) { confirmInput.value = ''; confirmInput.type = 'password'; }
+  if (feedback) { feedback.className = 'hidden text-xs font-bold p-2.5 rounded-xl border transition-all'; feedback.innerText = ''; }
+  if (badge) badge.classList.add('hidden');
+
+  const icon1 = document.getElementById('icon-curr-pass');
+  const icon2 = document.getElementById('icon-new-pass');
+  const icon3 = document.getElementById('icon-confirm-pass');
+  if (icon1) icon1.className = 'fa-solid fa-eye-slash text-xs';
+  if (icon2) icon2.className = 'fa-solid fa-eye-slash text-xs';
+  if (icon3) icon3.className = 'fa-solid fa-eye-slash text-xs';
+
+  handlePasswordStrengthCheck();
+}
+
+function openPasswordModal(context) {
+  const modal = document.getElementById('password-modal');
+  if (!modal) return;
+
+  const currentRole = getCurrentUserRole();
+  const isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
+  const roleTabs = document.getElementById('pwd-role-tabs');
+
+  resetPasswordModalInputs();
+
+  let target = 'admin';
+  if (context === 'staff' || (isLoggedIn && currentRole === 'staff')) {
+    target = 'staff';
+  }
+
+  if (isLoggedIn && currentRole === 'staff') {
+    if (roleTabs) roleTabs.classList.add('hidden');
+  } else {
+    if (roleTabs) roleTabs.classList.remove('hidden');
+  }
+
+  switchPasswordModalTab(target);
+
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
 }
 
 function closePasswordModal() {
@@ -359,32 +522,89 @@ function closePasswordModal() {
   }
 }
 
-document.getElementById('form-change-password').addEventListener('submit', (e) => {
-  e.preventDefault();
-  if (getCurrentUserRole() !== 'admin') {
-    return alert('Access Denied: Only Admin can change passwords.');
-  }
+const formChangePassword = document.getElementById('form-change-password');
+if (formChangePassword) {
+  formChangePassword.addEventListener('submit', (e) => {
+    e.preventDefault();
 
-  const newAdmin = document.getElementById('input-new-admin-pass').value.trim();
-  const newStaff = document.getElementById('input-new-staff-pass').value.trim();
+    const targetRole = document.getElementById('pwd-target-role')?.value || 'admin';
+    const currPass = document.getElementById('input-curr-pass')?.value?.trim() || '';
+    const newPass = document.getElementById('input-new-pass')?.value?.trim() || '';
+    const confirmPass = document.getElementById('input-confirm-pass')?.value?.trim() || '';
+    const feedback = document.getElementById('pwd-feedback-msg');
+    const submitBtn = document.getElementById('btn-save-password');
 
-  if (!newAdmin || !newStaff) {
-    return alert('Please fill in both admin and staff password fields.');
-  }
+    function showFeedback(msg, isError) {
+      if (!feedback) return;
+      feedback.innerText = msg;
+      feedback.className = isError
+        ? 'text-xs font-bold p-2.5 rounded-xl border bg-rose-50 border-rose-200 text-rose-700 fade-in'
+        : 'text-xs font-bold p-2.5 rounded-xl border bg-emerald-50 border-emerald-200 text-emerald-700 fade-in';
+      feedback.classList.remove('hidden');
+    }
 
-  db.ref('systemAuth').update({
-    admin: newAdmin,
-    staff: newStaff,
-    updatedAt: new Date().toISOString()
-  }).then(() => {
-    authCredentials.admin = newAdmin;
-    authCredentials.staff = newStaff;
-    alert('✅ Credentials successfully updated in cloud database!');
-    closePasswordModal();
-  }).catch(err => {
-    alert('Error updating passwords: ' + err.message);
+    const currentLoggedInRole = getCurrentUserRole();
+    const isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
+
+    // Verify current credentials
+    const activeTargetPass = authCredentials[targetRole] || (targetRole === 'admin' ? 'project420' : 'staff123');
+    const activeAdminPass = authCredentials.admin || 'project420';
+
+    const isValidCurrent = (currPass === activeTargetPass) || (isLoggedIn && currentLoggedInRole === 'admin' && currPass === activeAdminPass);
+
+    if (!isValidCurrent) {
+      showFeedback('❌ Current password is incorrect! (বর্তমান পাসওয়ার্ড সঠিক নয়)', true);
+      return;
+    }
+
+    if (newPass.length < 3) {
+      showFeedback('❌ New password must be at least 3 characters long.', true);
+      return;
+    }
+
+    if (newPass !== confirmPass) {
+      showFeedback('❌ New password and confirmation do not match!', true);
+      return;
+    }
+
+    if (newPass === currPass) {
+      showFeedback('⚠️ New password cannot be the same as current password.', true);
+      return;
+    }
+
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Saving...`;
+    }
+
+    const updates = {};
+    updates[`systemAuth/${targetRole}`] = newPass;
+    updates['systemAuth/updatedAt'] = new Date().toISOString();
+
+    db.ref('/').update(updates).then(() => {
+      authCredentials[targetRole] = newPass;
+      showFeedback(`✅ ${targetRole.toUpperCase()} password successfully updated in cloud!`, false);
+
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<i class="fa-solid fa-check"></i> Updated!`;
+      }
+
+      setTimeout(() => {
+        closePasswordModal();
+        if (submitBtn) {
+          submitBtn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Update Password`;
+        }
+      }, 1400);
+    }).catch(err => {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> Update Password`;
+      }
+      showFeedback('❌ Error updating password: ' + err.message, true);
+    });
   });
-});
+}
 
 // ACTIVE TAB MANAGER FOR SMOOTH RENDERING
 function getActiveTabName() {
@@ -1129,28 +1349,92 @@ function renderMonthlyView() {
   const tbody = document.getElementById('tbody-monthly-sales');
   if (!tbody) return;
 
-  if (activeFilteredSales.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400 text-xs font-semibold">No monthly records found for selected filter.</td></tr>`;
+  const titleEl = document.getElementById('monthly-table-title');
+  if (titleEl) {
+    const filterLabel = dateFilter ? `Date: ${dateFilter}` : `Month: ${monthFilter}`;
+    titleEl.innerHTML = `<i class="fa-solid fa-chart-pie text-amber-400"></i> Monthly Product Sales & Breakdown <span class="text-[11px] font-normal text-slate-400">(${filterLabel})</span>`;
+  }
+
+  let productStats = {};
+
+  products.forEach(p => {
+    productStats[String(p.id)] = {
+      id: p.id,
+      image: p.image,
+      selling: p.selling,
+      buying: p.buying,
+      desc: p.desc,
+      monthlyQty: 0,
+      monthlyGross: 0,
+      soldDates: []
+    };
+  });
+
+  activeFilteredSales.forEach(s => {
+    const q = getRecordQty(s);
+    if (q <= 0) return;
+
+    let pId = String(s.productId || (s.id ? s.id.split('_')[1] : ''));
+    const prod = products.find(p => String(p.id) === pId);
+    const g = getRecordGross(s, prod);
+
+    if (pId) {
+      if (!productStats[pId]) {
+        productStats[pId] = {
+          id: pId,
+          image: s.image || (prod ? prod.image : ''),
+          selling: (prod && typeof prod.selling === 'number') ? prod.selling : (typeof s.selling === 'number' ? s.selling : 0),
+          buying: (prod && typeof prod.buying === 'number') ? prod.buying : (typeof s.buying === 'number' ? s.buying : 0),
+          desc: (prod && prod.desc) ? prod.desc : (s.desc || ''),
+          monthlyQty: 0,
+          monthlyGross: 0,
+          soldDates: []
+        };
+      }
+      productStats[pId].monthlyQty += q;
+      productStats[pId].monthlyGross += g;
+      if (s.date && !productStats[pId].soldDates.includes(s.date)) {
+        productStats[pId].soldDates.push(s.date);
+      }
+    }
+  });
+
+  let soldProducts = Object.values(productStats).filter(p => p.monthlyQty > 0);
+  soldProducts.sort((a, b) => b.monthlyQty - a.monthlyQty);
+
+  if (soldProducts.length === 0) {
+    const emptyMsg = dateFilter 
+      ? `No product sales recorded for selected date (${dateFilter}).` 
+      : `No product sales recorded for this month (${monthFilter}).`;
+    tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400 text-xs font-semibold">${emptyMsg}</td></tr>`;
   } else {
-    tbody.innerHTML = activeFilteredSales.map((s, idx) => {
-      const pId = s.productId || (s.id ? s.id.split('_')[1] : null);
-      const prod = products.find(p => String(p.id) === String(pId));
-      const q = getRecordQty(s);
-      const g = getRecordGross(s, prod);
+    tbody.innerHTML = soldProducts.map((p, idx) => {
+      const unitProfit = p.selling - p.buying;
+      const totalRevenue = p.selling * p.monthlyQty;
+      const daysCount = p.soldDates.length;
 
       return `
         <tr class="hover:bg-slate-100/50 transition-colors border-b border-slate-50">
           <td class="p-2.5 sm:p-4 text-center font-bold text-slate-400 text-xs">${idx + 1}</td>
-          <td class="p-2.5 sm:p-4 font-extrabold text-slate-700 bg-slate-50/50 text-[11px] sm:text-xs">${s.date}</td>
-          <td class="p-2.5 sm:p-4"><img src="${s.image}" class="img-compact shadow-sm border-slate-100"></td>
+          <td class="p-2.5 sm:p-4"><img src="${p.image}" class="img-compact shadow-sm border-slate-100"></td>
           <td class="p-2.5 sm:p-4">
-            <div class="text-[11px] sm:text-xs font-black text-slate-800 bg-slate-100 px-2 py-0.5 sm:py-1 rounded inline-block mb-1">Qty: ${q} Pcs</div>
-            <div class="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 sm:mt-1 font-semibold">Sell: ৳${s.selling} <span class="text-slate-300 mx-1">|</span> Buy: ৳${s.buying}</div>
+            <div class="text-xs sm:text-sm font-black text-amber-600 bg-amber-50 px-2 py-0.5 sm:py-1 inline-block rounded border border-amber-100 mb-1">
+              Monthly Sold: ${p.monthlyQty} Pcs
+            </div>
+            <div class="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 font-semibold">
+              Sell: ৳${p.selling} <span class="text-slate-300 mx-1">|</span> Buy: ৳${p.buying} <span class="text-slate-300 mx-1">|</span> Profit/Unit: ৳${unitProfit}
+            </div>
+            <div class="text-[10px] text-slate-400 font-medium mt-0.5 flex items-center gap-1">
+              <i class="fa-regular fa-calendar-check text-amber-500"></i> Active Days: ${daysCount} ${daysCount === 1 ? 'day' : 'days'}
+            </div>
           </td>
-          <td class="p-2.5 sm:p-4 font-black text-xs sm:text-sm text-indigo-700">৳ ${g}</td>
-          <td class="p-2.5 sm:p-4 text-xs text-slate-600 leading-relaxed font-medium">${s.desc || ''}</td>
+          <td class="p-2.5 sm:p-4 font-black text-xs sm:text-base text-emerald-600">
+            <div>৳ ${p.monthlyGross}</div>
+            <div class="text-[10px] text-slate-400 font-medium mt-0.5">Total Sold Value: ৳${totalRevenue}</div>
+          </td>
+          <td class="p-2.5 sm:p-4 text-xs text-slate-600 font-medium leading-relaxed">${p.desc || ''}</td>
           <td class="p-2.5 sm:p-4 text-center no-print">
-            <button onclick="deleteProduct(event, ${pId})" class="text-rose-400 hover:text-white bg-rose-50 hover:bg-rose-500 p-1.5 sm:p-2 transition-colors rounded-lg shadow-sm border border-rose-100 hover:border-rose-500" title="Delete Product Completely">
+            <button onclick="deleteProduct(event, ${p.id})" class="text-rose-400 hover:text-white bg-rose-50 hover:bg-rose-500 p-1.5 sm:p-2 transition-colors rounded-lg shadow-sm border border-rose-100 hover:border-rose-500" title="Delete Product Completely">
               <i class="fa-solid fa-trash-can text-xs"></i>
             </button>
           </td>

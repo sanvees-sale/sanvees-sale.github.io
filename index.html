@@ -77,9 +77,9 @@
             <i class="fa-solid fa-cloud-arrow-up"></i> <span class="hidden md:inline">Restore</span>
           </button>
 
-          <!-- Change Passwords Button (Admin Only) -->
-          <button type="button" id="btn-open-passwords" onclick="openPasswordModal()" class="admin-only bg-slate-800 hover:bg-slate-700 active:scale-[0.95] text-amber-400 font-bold p-2 sm:px-3 sm:py-2 rounded-xl text-xs flex items-center gap-1.5 border border-slate-700 transition-all shadow-sm cursor-pointer" title="Change Passwords">
-            <i class="fa-solid fa-key"></i> <span class="hidden md:inline">Passwords</span>
+          <!-- Change Password Button (Available for Logged In Users) -->
+          <button type="button" id="btn-open-passwords" onclick="openPasswordModal()" class="bg-slate-800 hover:bg-slate-700 active:scale-[0.95] text-amber-400 font-bold p-2 sm:px-3 sm:py-2 rounded-xl text-xs flex items-center gap-1.5 border border-slate-700 transition-all shadow-sm cursor-pointer" title="Change Password / পাসওয়ার্ড পরিবর্তন">
+            <i class="fa-solid fa-key"></i> <span class="hidden sm:inline">Password</span>
           </button>
 
           <!-- Print Button (Admin Only - Prints Active Sector) -->
@@ -151,39 +151,104 @@
       </div>
     </div>
 
-    <!-- CHANGE PASSWORDS MODAL (ADMIN ONLY) -->
+    <!-- CHANGE PASSWORD MODAL -->
     <div id="password-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] hidden items-center justify-center p-3 sm:p-4 transition-opacity">
       <div class="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 w-full max-w-md shadow-2xl border border-slate-100 transform scale-100 fade-in max-h-[92vh] overflow-y-auto">
+        <!-- Header -->
         <div class="flex justify-between items-center mb-3 sm:mb-4 border-b border-slate-100 pb-2.5 sm:pb-3">
-          <h2 class="text-sm sm:text-base font-extrabold text-slate-900 flex items-center gap-2">
-            <i class="fa-solid fa-key text-amber-500"></i> Change Passwords
-          </h2>
-          <button type="button" onclick="closePasswordModal()" class="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+          <div>
+            <h2 class="text-sm sm:text-base font-extrabold text-slate-900 flex items-center gap-2">
+              <span class="w-7 h-7 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center text-xs">
+                <i class="fa-solid fa-key"></i>
+              </span>
+              Change Password
+            </h2>
+            <p class="text-[11px] text-slate-500 mt-0.5">পাসওয়ার্ড পরিবর্তন ও ক্লাউড সিঙ্ক</p>
+          </div>
+          <button type="button" onclick="closePasswordModal()" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer" title="Close">
+            <i class="fa-solid fa-xmark text-lg"></i>
+          </button>
         </div>
+
+        <!-- Role Switcher Tabs (For Admin or Login context) -->
+        <div id="pwd-role-tabs" class="flex p-1 bg-slate-100 rounded-xl mb-3.5 text-xs font-bold">
+          <button type="button" id="tab-pwd-admin" onclick="switchPasswordModalTab('admin')" class="flex-1 py-2 px-3 rounded-lg text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 bg-white text-slate-900 shadow-xs">
+            <i class="fa-solid fa-crown text-amber-500 text-xs"></i> Admin Password
+          </button>
+          <button type="button" id="tab-pwd-staff" onclick="switchPasswordModalTab('staff')" class="flex-1 py-2 px-3 rounded-lg text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 text-slate-500 hover:text-slate-800">
+            <i class="fa-solid fa-user-shield text-indigo-500 text-xs"></i> Staff Password
+          </button>
+        </div>
+
         <form id="form-change-password" class="space-y-3 sm:space-y-4">
-          <div class="bg-amber-50/50 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-amber-100 space-y-2.5 sm:space-y-3">
-            <h3 class="text-xs font-black text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
-              <i class="fa-solid fa-crown text-amber-500"></i> Admin Credentials
-            </h3>
-            <div>
-              <label class="block text-[11px] font-bold text-slate-600 mb-1">New Admin Password</label>
-              <input type="text" id="input-new-admin-pass" required placeholder="Enter new admin password" class="w-full border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 font-bold transition-all bg-white">
+          <input type="hidden" id="pwd-target-role" value="admin">
+
+          <!-- Role Banner Note -->
+          <div id="pwd-role-banner" class="p-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-900">
+            <i class="fa-solid fa-circle-info text-amber-600 flex-shrink-0"></i>
+            <span id="pwd-banner-text">Updating Master <b class="text-amber-800 font-extrabold">Admin</b> Password</span>
+          </div>
+
+          <!-- Current Password -->
+          <div>
+            <label class="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
+              <span>Current Password <span class="text-slate-400 font-normal">(বর্তমান পাসওয়ার্ড)</span></span>
+            </label>
+            <div class="relative">
+              <input type="password" id="input-curr-pass" required placeholder="Enter current password" class="w-full border border-slate-200 rounded-xl p-2.5 pr-10 text-xs font-semibold outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all bg-slate-50 focus:bg-white">
+              <button type="button" onclick="togglePasswordVisibility('input-curr-pass', 'icon-curr-pass')" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer" tabindex="-1">
+                <i id="icon-curr-pass" class="fa-solid fa-eye-slash text-xs"></i>
+              </button>
             </div>
           </div>
 
-          <div class="bg-indigo-50/50 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-indigo-100 space-y-2.5 sm:space-y-3">
-            <h3 class="text-xs font-black text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
-              <i class="fa-solid fa-user-shield text-indigo-500"></i> Staff Credentials
-            </h3>
-            <div>
-              <label class="block text-[11px] font-bold text-slate-600 mb-1">New Staff Password</label>
-              <input type="text" id="input-new-staff-pass" required placeholder="Enter new staff password" class="w-full border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 font-bold transition-all bg-white">
+          <!-- New Password -->
+          <div>
+            <label class="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
+              <span>New Password <span class="text-slate-400 font-normal">(নতুন পাসওয়ার্ড)</span></span>
+            </label>
+            <div class="relative">
+              <input type="password" id="input-new-pass" required placeholder="Enter new password (min 3 chars)" oninput="handlePasswordStrengthCheck()" class="w-full border border-slate-200 rounded-xl p-2.5 pr-10 text-xs font-semibold outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all bg-slate-50 focus:bg-white">
+              <button type="button" onclick="togglePasswordVisibility('input-new-pass', 'icon-new-pass')" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer" tabindex="-1">
+                <i id="icon-new-pass" class="fa-solid fa-eye-slash text-xs"></i>
+              </button>
+            </div>
+            <!-- Strength Indicator -->
+            <div class="mt-1.5 flex items-center gap-2">
+              <div class="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden flex gap-0.5">
+                <div id="pwd-strength-bar-1" class="h-full w-1/3 bg-slate-200 transition-all"></div>
+                <div id="pwd-strength-bar-2" class="h-full w-1/3 bg-slate-200 transition-all"></div>
+                <div id="pwd-strength-bar-3" class="h-full w-1/3 bg-slate-200 transition-all"></div>
+              </div>
+              <span id="pwd-strength-text" class="text-[10px] font-bold text-slate-400">Empty</span>
             </div>
           </div>
 
-          <div class="flex gap-2 justify-end mt-4 sm:mt-6">
-            <button type="button" onclick="closePasswordModal()" class="bg-slate-100 hover:bg-slate-200 active:scale-[0.98] text-slate-800 px-4 sm:px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer">Cancel</button>
-            <button type="submit" class="bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-amber-400 px-4 sm:px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all shadow-sm cursor-pointer">Save to Cloud</button>
+          <!-- Confirm New Password -->
+          <div>
+            <label class="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
+              <span>Confirm New Password <span class="text-slate-400 font-normal">(পুনরায় লিখুন)</span></span>
+              <span id="pwd-match-badge" class="hidden text-[10px] font-bold"></span>
+            </label>
+            <div class="relative">
+              <input type="password" id="input-confirm-pass" required placeholder="Re-type new password" oninput="handlePasswordMatchCheck()" class="w-full border border-slate-200 rounded-xl p-2.5 pr-10 text-xs font-semibold outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all bg-slate-50 focus:bg-white">
+              <button type="button" onclick="togglePasswordVisibility('input-confirm-pass', 'icon-confirm-pass')" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer" tabindex="-1">
+                <i id="icon-confirm-pass" class="fa-solid fa-eye-slash text-xs"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Feedback message box -->
+          <div id="pwd-feedback-msg" class="hidden text-xs font-bold p-2.5 rounded-xl border transition-all"></div>
+
+          <!-- Actions -->
+          <div class="flex gap-2 justify-end pt-2 sm:pt-3">
+            <button type="button" onclick="closePasswordModal()" class="bg-slate-100 hover:bg-slate-200 active:scale-[0.98] text-slate-700 px-4 sm:px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer">
+              Cancel
+            </button>
+            <button type="submit" id="btn-save-password" class="bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-amber-400 px-5 sm:px-6 py-2.5 rounded-xl text-xs font-extrabold transition-all shadow-sm cursor-pointer flex items-center gap-1.5">
+              <i class="fa-solid fa-cloud-arrow-up"></i> Update Password
+            </button>
           </div>
         </form>
       </div>
@@ -484,10 +549,9 @@
               <thead class="bg-slate-50 text-slate-500 font-extrabold border-b border-slate-200 uppercase tracking-wider text-[10px]">
                 <tr>
                   <th class="p-3 sm:p-4 text-center w-12">SL</th>
-                  <th class="p-3 sm:p-4 w-28">Date</th>
                   <th class="p-3 sm:p-4 w-28 sm:w-32">Picture</th>
-                  <th class="p-3 sm:p-4">Info</th>
-                  <th class="p-3 sm:p-4 w-28 sm:w-32">Financials</th>
+                  <th class="p-3 sm:p-4">Sold Info & Price</th>
+                  <th class="p-3 sm:p-4 w-32 sm:w-40">Monthly Gross</th>
                   <th class="p-3 sm:p-4">Description</th>
                   <th class="p-3 sm:p-4 text-center no-print w-14">Action</th>
                 </tr>
